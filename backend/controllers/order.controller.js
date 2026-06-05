@@ -28,6 +28,8 @@ exports.createOrder = async (req, res) => {
         name: item.productId.name,
         price: price,
         image: item.productId.images[0],
+        category: item.productId.category,
+        gender: item.productId.gender,
         size: item.size,
         color: item.color,
         quantity: item.quantity

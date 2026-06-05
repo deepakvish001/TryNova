@@ -71,6 +71,50 @@
                     </div>
                 </div>
 
+                <!-- Style DNA -->
+                <div id="style-dna-card" class="bg-gradient-to-br from-primary to-accent text-white rounded-2xl p-8 shadow-sm hidden">
+                    <div class="flex items-start justify-between mb-6">
+                        <div>
+                            <div class="text-[10px] uppercase tracking-widest opacity-70 mb-1">Style DNA</div>
+                            <h2 class="text-2xl font-serif">Your Fashion Fingerprint</h2>
+                        </div>
+                        <svg class="w-8 h-8 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        <div>
+                            <div class="text-[10px] uppercase tracking-widest opacity-60 mb-1">Top Category</div>
+                            <div class="text-lg font-bold" id="dna-category">—</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-widest opacity-60 mb-1">Style For</div>
+                            <div class="text-lg font-bold" id="dna-gender">—</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-widest opacity-60 mb-1">Favourite Colour</div>
+                            <div class="text-lg font-bold" id="dna-color">—</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-widest opacity-60 mb-1">Avg Spend</div>
+                            <div class="text-lg font-bold" id="dna-spend">—</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Personalized Recommendations -->
+                <div class="bg-surface rounded-2xl p-8 shadow-sm">
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="text-xl font-bold uppercase tracking-wide flex items-center gap-2">
+                            <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            Picked for You
+                        </h2>
+                        <span class="text-[10px] uppercase tracking-widest text-muted">AI Curated</span>
+                    </div>
+                    <p class="text-muted text-sm mb-6" id="personalized-reason">Based on your style, past orders and what you've been viewing.</p>
+                    <div id="personalized-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        <div class="col-span-full text-muted text-sm">Loading recommendations...</div>
+                    </div>
+                </div>
+
                 <div class="bg-surface rounded-2xl p-8 shadow-sm">
                     <h2 class="text-xl font-bold uppercase tracking-wide mb-6">My Saved Looks</h2>
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -154,13 +198,60 @@
                 document.getElementById('profile-name').textContent = user.name;
                 document.getElementById('profile-email').textContent = user.email;
                 document.getElementById('profile-avatar').textContent = user.name.charAt(0);
-                
+
                 document.getElementById('settings-name').value = user.name;
                 document.getElementById('settings-email').value = user.email;
             } catch(e) {
                 logout();
             }
+
+            loadPersonalized();
         });
+
+        async function loadPersonalized() {
+            const grid = document.getElementById('personalized-grid');
+            const reasonEl = document.getElementById('personalized-reason');
+            try {
+                const res = await api.get('/recommendations/personalized?limit=8');
+                if (!res.data || res.data.length === 0) {
+                    grid.innerHTML = '<div class="col-span-full text-muted text-sm">Start shopping to unlock personalised picks.</div>';
+                    return;
+                }
+                if (res.reason === 'personalized' && res.profile) {
+                    const bits = [];
+                    if (res.profile.topCategory) bits.push(`favours <span class="text-accent font-semibold">${res.profile.topCategory}</span>`);
+                    if (res.profile.topColor) bits.push(`loves <span class="text-accent font-semibold">${res.profile.topColor}</span>`);
+                    if (res.profile.avgPrice) bits.push(`avg spend <span class="text-accent font-semibold">₹${res.profile.avgPrice}</span>`);
+                    if (bits.length) reasonEl.innerHTML = 'Your taste signal: ' + bits.join(' · ');
+
+                    // Light up Style DNA card
+                    const card = document.getElementById('style-dna-card');
+                    if (card) {
+                        card.classList.remove('hidden');
+                        document.getElementById('dna-category').textContent = res.profile.topCategory || '—';
+                        document.getElementById('dna-gender').textContent = res.profile.topGender || '—';
+                        document.getElementById('dna-color').textContent = res.profile.topColor || '—';
+                        document.getElementById('dna-spend').textContent = res.profile.avgPrice ? `₹${res.profile.avgPrice}` : '—';
+                    }
+                } else if (res.reason === 'trending') {
+                    reasonEl.textContent = "You're new here — these are our trending picks this week.";
+                }
+                grid.innerHTML = res.data.map(p => `
+                    <a href="product.html?id=${p._id}" class="group block">
+                        <div class="aspect-[4/5] bg-secondary rounded-xl overflow-hidden mb-2 relative">
+                            <img src="${p.images[0]}" alt="${p.name}" class="w-full h-full object-cover group-hover:scale-105 smooth-transition">
+                            ${p.discount ? `<span class="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${p.discount}% OFF</span>` : ''}
+                        </div>
+                        <div class="text-xs text-muted">${p.category}</div>
+                        <div class="text-sm font-semibold text-primary truncate">${p.name}</div>
+                        <div class="text-sm font-bold text-primary">₹${p.price}</div>
+                    </a>
+                `).join('');
+            } catch (e) {
+                console.error(e);
+                grid.innerHTML = '<div class="col-span-full text-muted text-sm">Could not load recommendations.</div>';
+            }
+        }
 
         async function loadOrders() {
             try {

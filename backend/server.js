@@ -26,6 +26,7 @@ app.use('/api/favorites', require('./routes/favorites.routes'));
 app.use('/api/tryon', require('./routes/tryon.routes'));
 app.use('/api/orders', require('./routes/order.routes'));
 app.use('/api/stylist', require('./routes/stylist.routes'));
+app.use('/api/recommendations', require('./routes/recommendations.routes'));
 
 // Basic health check route
 app.get('/', (req, res) => {

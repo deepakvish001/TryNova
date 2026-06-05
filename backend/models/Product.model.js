@@ -3,11 +3,14 @@ const mongoose = require('mongoose');
 const productSchema = new mongoose.Schema({
   id: { type: String }, // optional custom string id if needed
   name: { type: String, required: true },
-  category: { 
-    type: String, 
-    enum: ['T-Shirts', 'Shirts', 'Hoodies', 'Jackets', 'Jeans', 'Dresses'],
+  category: {
+    type: String,
+    enum: ['T-Shirts', 'Shirts', 'Hoodies', 'Jackets', 'Jeans', 'Dresses', 'Sneakers', 'Accessories'],
     required: true
   },
+  brand: { type: String, default: '' },
+  discount: { type: Number, default: 0 }, // percent
+  popularity: { type: Number, default: 0 },
   gender: { 
     type: String, 
     enum: ['Men', 'Women', 'Unisex'],

@@ -201,6 +201,22 @@
         </div>
     </section>
 
+    <!-- Recommended for You (logged-in users only) -->
+    <section id="recommended-section" class="py-24 bg-surface" style="display:none">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-end mb-10">
+                <div>
+                    <h2 class="text-3xl md:text-4xl font-bold mb-2 flex items-center gap-3">
+                        Recommended for You
+                        <span class="text-[10px] uppercase tracking-widest text-accent border border-accent/30 px-2 py-1 rounded-full">AI</span>
+                    </h2>
+                    <p class="text-muted" id="recommended-reason">Curated from your order history and style profile</p>
+                </div>
+            </div>
+            <div id="recommended-container" class="grid grid-cols-2 md:grid-cols-4 gap-6"></div>
+        </div>
+    </section>
+
     <!-- Stylist Teaser -->
     <section class="py-24 bg-surface relative overflow-hidden">
         <div class="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
@@ -268,6 +284,39 @@
                 }
             } catch (error) {
                 console.error("Failed to load trending products", error);
+            }
+
+            // Personalized "Recommended for You" block (only if logged in)
+            if (localStorage.getItem('token')) {
+                try {
+                    const res = await api.get('/recommendations/personalized?limit=8');
+                    if (res.data && res.data.length) {
+                        document.getElementById('recommended-section').style.display = '';
+                        if (res.profile) {
+                            const bits = [];
+                            if (res.profile.topCategory) bits.push(`favours <span class="text-accent">${res.profile.topCategory}</span>`);
+                            if (res.profile.topColor) bits.push(`loves <span class="text-accent">${res.profile.topColor}</span>`);
+                            if (bits.length) {
+                                document.getElementById('recommended-reason').innerHTML = 'Curated for you · ' + bits.join(' · ');
+                            }
+                        }
+                        const grid = document.getElementById('recommended-container');
+                        grid.innerHTML = res.data.map(p => `
+                            <a href="product.html?id=${p._id}" class="group block bg-surface rounded-xl overflow-hidden border border-accent/10 hover:border-accent smooth-transition">
+                                <div class="aspect-[4/5] overflow-hidden bg-secondary">
+                                    <img src="${p.images[0]}" alt="${p.name}" class="w-full h-full object-cover group-hover:scale-105 smooth-transition">
+                                </div>
+                                <div class="p-4">
+                                    <div class="text-[10px] text-accent uppercase tracking-wider font-semibold">${p.category}</div>
+                                    <h3 class="font-medium truncate mt-1">${p.name}</h3>
+                                    <div class="text-sm font-bold mt-1">₹${p.price}</div>
+                                </div>
+                            </a>
+                        `).join('');
+                    }
+                } catch (e) {
+                    console.warn('No personalized recs', e);
+                }
             }
         });
     </script>

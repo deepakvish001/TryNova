@@ -6,7 +6,7 @@
     <title>AI Try-On - TryNova</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-                tailwind.config = {
+        tailwind.config = {
             theme: {
                 extend: {
                     colors: {
@@ -29,8 +29,8 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="bg-base text-primary font-sans antialiased">
-    
-    <!-- Navbar (simplified for tryon) -->
+
+    <!-- Navbar -->
     <nav class="w-full glass-panel border-b border-accent/10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
@@ -47,34 +47,50 @@
     </nav>
 
     <main class="min-h-[calc(100vh-64px)] flex items-center justify-center p-4">
-        <!-- Modal Container -->
         <div class="w-full max-w-5xl bg-surface rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row">
-            
+
             <!-- Left Panel -->
             <div class="w-full md:w-5/12 p-8 md:p-12 bg-surface flex flex-col border-r border-accent/10">
-                
-                <!-- Tabs -->
-                <div class="flex space-x-2 mb-10 border-b border-accent/10 pb-4">
-                    <button class="bg-[#A48D7C] text-white px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider">AI Try-On</button>
-                    <button class="text-muted hover:text-primary px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider smooth-transition">Upload Photo</button>
-                    <button class="text-muted hover:text-primary px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider smooth-transition">Adjust Fit</button>
-                </div>
-                
-                <h1 class="text-3xl font-serif font-bold text-primary mb-2">See Yourself in the Clothes!</h1>
-                <p class="text-muted text-sm mb-8">Upload a full-body photo, choose any product, and let our AI show you exactly how it fits.</p>
 
-                <!-- STEP 1: Upload Photo -->
-                <div class="mb-6">
+                <!-- Mode Tabs -->
+                <div class="flex space-x-2 mb-8 border-b border-accent/10 pb-4">
+                    <button id="tab-photo" class="bg-[#A48D7C] text-white px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider smooth-transition">Photo</button>
+                    <button id="tab-live" class="text-muted hover:text-primary px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider smooth-transition">Live Camera</button>
+                    <span class="ml-auto text-[10px] text-muted self-center font-semibold tracking-wider uppercase">
+                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-green-500 mr-1 align-middle"></span>
+                        On-device AI
+                    </span>
+                </div>
+
+                <h1 class="text-3xl font-serif font-bold text-primary mb-2">See Yourself in the Clothes!</h1>
+                <p class="text-muted text-sm mb-8">Upload a full-body photo or use your camera. Our on-device AI detects your body pose and renders the garment in real time.</p>
+
+                <!-- STEP 1: Upload Photo (Photo Mode) -->
+                <div class="mb-6" id="photo-step">
                     <div id="drop-zone" class="border-2 border-dashed border-accent/30 bg-secondary rounded-xl p-4 text-center cursor-pointer hover:border-accent smooth-transition relative overflow-hidden h-32 flex flex-col items-center justify-center">
                         <input type="file" id="file-input" class="hidden" accept="image/jpeg, image/png, image/webp">
                         <div id="drop-content">
                             <svg class="w-8 h-8 text-muted mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                            <p class="text-primary text-sm font-medium">Click to upload photo</p>
+                            <p class="text-primary text-sm font-medium">Click to upload a full-body photo</p>
+                            <p class="text-muted text-[11px] mt-1">JPG, PNG up to 10MB</p>
                         </div>
                         <img id="image-preview" class="hidden absolute inset-0 w-full h-full object-cover" src="" alt="Preview">
                     </div>
                 </div>
-                
+
+                <!-- Live Camera Notice -->
+                <div class="mb-6 hidden" id="live-step">
+                    <div class="bg-secondary rounded-xl p-4 text-sm text-primary">
+                        <div class="flex items-start gap-3">
+                            <svg class="w-5 h-5 text-accent flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            <div>
+                                <p class="font-semibold">Step in front of the camera.</p>
+                                <p class="text-muted text-xs mt-1">Stand about 2m back so your shoulders and hips are visible.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- STEP 2: Select Product -->
                 <div class="mb-8">
                     <div id="selected-product-container" class="hidden flex gap-4 p-3 bg-secondary rounded-xl mb-3 relative">
@@ -94,23 +110,12 @@
                     </div>
                 </div>
 
-                <!-- Sizes (Static UI) -->
-                <div class="mb-8 hidden" id="size-selector">
-                    <div class="text-xs uppercase font-bold tracking-wider text-muted mb-3">Select Size</div>
-                    <div class="flex space-x-3">
-                        <button class="w-10 h-10 rounded-full border border-accent/20 text-sm font-semibold hover:border-accent smooth-transition text-primary">S</button>
-                        <button class="w-10 h-10 rounded-full bg-primary text-white text-sm font-semibold border border-primary">M</button>
-                        <button class="w-10 h-10 rounded-full border border-accent/20 text-sm font-semibold hover:border-accent smooth-transition text-primary">L</button>
-                        <button class="w-10 h-10 rounded-full border border-accent/20 text-sm font-semibold hover:border-accent smooth-transition text-primary">XL</button>
-                    </div>
-                </div>
-
                 <div class="mt-auto">
                     <button id="generate-btn" class="w-full bg-accent hover:bg-accent-hover text-white py-4 rounded-full text-sm font-bold uppercase tracking-widest smooth-transition disabled:opacity-50 shadow-lg" disabled>
                         Generate Try-On
                     </button>
-                    
-                    <!-- AI Insights (Hidden until generated) -->
+
+                    <!-- AI Insights -->
                     <div id="ai-insights-container" class="hidden mt-6 bg-secondary border border-accent/20 rounded-2xl p-5 relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-1 h-full bg-accent"></div>
                         <h3 class="text-xs font-bold uppercase tracking-widest text-primary mb-4 flex items-center">
@@ -136,7 +141,7 @@
             </div>
 
             <!-- Right Panel -->
-            <div id="resultPanel" class="w-full md:w-7/12 bg-secondary relative flex flex-col">
+            <div id="resultPanel" class="w-full md:w-7/12 bg-secondary relative flex flex-col min-h-[600px]">
                 <!-- STATE 1: Default placeholder -->
                 <div id="statePlaceholder" class="absolute inset-0 flex flex-col items-center justify-center p-8">
                     <div class="w-24 h-24 rounded-full bg-white shadow-sm flex items-center justify-center mb-6">
@@ -153,23 +158,30 @@
 
                 <!-- STATE 3: Result image -->
                 <div id="stateResult" class="hidden absolute inset-0 flex flex-col">
-                    <img id="generatedImage" class="absolute inset-0 w-full h-full object-cover object-top" src="" alt="Try-on result">
+                    <img id="generatedImage" class="absolute inset-0 w-full h-full object-contain bg-black/5" src="" alt="Try-on result">
                 </div>
 
-                <!-- Action Buttons overlay (always visible) -->
+                <!-- STATE 4: Live webcam canvas -->
+                <div id="stateLive" class="hidden absolute inset-0 flex flex-col bg-black">
+                    <video id="webcam-video" class="hidden" autoplay playsinline muted></video>
+                    <canvas id="webcam-canvas" class="absolute inset-0 w-full h-full object-contain"></canvas>
+                </div>
+
+                <!-- Action Buttons overlay -->
                 <div class="absolute bottom-6 left-0 right-0 px-8 flex justify-between items-center z-30">
-                    <button onclick="cancelTryOn()" class="bg-white text-primary px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg hover:bg-gray-50 smooth-transition">Cancel</button>
+                    <button onclick="cancelTryOn()" class="bg-white text-primary px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg hover:bg-gray-50 smooth-transition">Reset</button>
                     <div class="flex space-x-3">
                         <button onclick="saveImage()" class="bg-white text-primary px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg hover:bg-gray-50 smooth-transition">Save Image</button>
                         <button onclick="buyNow()" class="bg-primary text-white px-8 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg hover:bg-gray-800 smooth-transition">Buy Now</button>
                     </div>
                 </div>
             </div>
-            
+
         </div>
     </main>
 
     <script src="js/api.js"></script>
+    <script src="js/browserTryOn.js"></script>
     <script src="js/tryOn.js"></script>
 </body>
 </html>
