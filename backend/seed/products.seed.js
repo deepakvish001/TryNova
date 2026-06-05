@@ -178,6 +178,17 @@ const generateProducts = () => {
         if (Math.random() < 0.3) tags.push('trending');
         if (Math.random() < 0.2) tags.push('new-arrival');
 
+        // Pollinations AI returns a generated fashion product shot for any
+        // prompt — far more "demo-able" than random Picsum stock photos.
+        const primaryPrompt = encodeURIComponent(
+            `${gender} fashion product flat lay of ${name}, ` +
+            `studio lighting on white background, e-commerce photography, high detail`
+        );
+        const altPrompt = encodeURIComponent(
+            `Model wearing ${name}, ${gender.toLowerCase()} fashion editorial, ` +
+            `clean studio backdrop, full body shot`
+        );
+
         products.push({
             name,
             brand: brandFromName(name),
@@ -187,8 +198,8 @@ const generateProducts = () => {
             discount: getDiscount(),
             popularity: randInt(0, 1000),
             images: [
-                `https://picsum.photos/seed/trynova_${idCounter}/400/500`,
-                `https://picsum.photos/seed/trynova_alt_${idCounter}/400/500`
+                `https://image.pollinations.ai/prompt/${primaryPrompt}?width=400&height=500&nologo=true&seed=${idCounter}`,
+                `https://image.pollinations.ai/prompt/${altPrompt}?width=400&height=500&nologo=true&seed=${idCounter * 7}`
             ],
             description: `${name} - crafted with premium materials and modern aesthetics. A versatile addition to your wardrobe designed for both comfort and style.`,
             sizes: getSizes(category),
