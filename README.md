@@ -1,15 +1,21 @@
 # TryNova - AI-Powered Fashion E-commerce
 
-TryNova is a complete production-ready AI-powered fashion web application. It features a modern, premium dark-themed frontend, a scalable Node.js backend, and a Python FastAPI AI microservice for virtual try-ons.
+TryNova is a production-ready AI-powered fashion web application. It pairs a modern frontend with a Node.js + Express backend and a Python FastAPI AI microservice for virtual try-ons.
 
 ## Features
 
-- **Modern UI**: Dark theme, glassmorphism, responsive mobile-first design.
-- **AI Virtual Try-On**: Upload a photo, pick a clothing item, and see yourself wearing it using Replicate's `idm-vton` model (with an OpenCV local fallback).
-- **AI Stylist**: A chat interface that recommends outfits based on occasion, vibe, and color preferences.
-- **Shop & Filtering**: Browse 100 seeded fashion items with dynamic filtering by category, price, gender, and sorting.
-- **User Authentication**: Secure JWT-based login and signup.
-- **Cart & Wishlist**: Manage your shopping cart and save favorite items to your profile.
+- **Virtual Try-On (3-tier engine):**
+  - **Browser mode** — MediaPipe Pose runs entirely in the browser, detects 33 body landmarks, and warps the garment onto the torso. Works **offline, instantly, with zero API cost**.
+  - **Live camera mode** — real-time webcam try-on with mirrored pose tracking.
+  - **Server mode** — automatic fallback to Python + OpenCV + MediaPipe, or Replicate `idm-vton` / Fashn.ai when keys are provided.
+- **Personalized Recommendations** — a weighted profile is built from order history, cart and wishlist signals. Picks reflect the user's preferred category, gender, colour palette and price band.
+- **Complete the Look** — anchored on any product or the cart, suggests complementary categories within a sensible price range.
+- **Trending** — driven by real order counts, with rating-based top-up.
+- **AI Stylist** — chat-style outfit recommendations.
+- **Recently Viewed** — browser-local history of viewed products with quick re-entry.
+- **AI Insights** — fit notes, styling tips and a confidence score generated for each try-on.
+- **Shop & Filtering** — 180+ seeded items across 8 categories, with category / gender / price / brand / search filters.
+- **Auth + Cart + Wishlist + Orders** — JWT-based, MongoDB-backed.
 
 ## Prerequisites
 

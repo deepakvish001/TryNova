@@ -1,4 +1,12 @@
-const API_BASE = 'http://localhost:5001/api';
+// Resolve the backend base URL.
+// Priority: window.__API_BASE__ override -> localStorage -> sensible default per host.
+const API_BASE = (() => {
+    if (window.__API_BASE__) return window.__API_BASE__;
+    const stored = localStorage.getItem('trynova:api_base');
+    if (stored) return stored;
+    const host = window.location.hostname || 'localhost';
+    return `http://${host}:5000/api`;
+})();
 
 const api = {
     async request(endpoint, options = {}) {

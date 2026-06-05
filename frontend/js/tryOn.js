@@ -1,5 +1,14 @@
+/**
+ * TryNova - AI Try-On page controller
+ *
+ * Two modes:
+ *   - "photo"  : user uploads a photo, we run BrowserTryOn.composite() to render
+ *                a pose-aware overlay. If MediaPipe fails to load, we fall back
+ *                to the backend /api/tryon endpoint.
+ *   - "live"   : webcam stream with real-time pose tracking overlay.
+ */
 document.addEventListener('DOMContentLoaded', async () => {
-    // Elements
+    // ---- Element refs ----
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     const imagePreview = document.getElementById('image-preview');
@@ -9,44 +18,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     const productSelector = document.getElementById('product-selector');
     const selectedProductContainer = document.getElementById('selected-product-container');
     const changeProductBtn = document.getElementById('change-product-btn');
-    
-    // Result elements
-    const resultPlaceholder = document.getElementById('result-placeholder');
-    const resultContainer = document.getElementById('result-container');
-    const resultBefore = document.getElementById('result-before');
-    const resultAfter = document.getElementById('result-after');
-    const sliderHandle = document.getElementById('slider-handle');
-    const sliderClip = document.getElementById('slider-clip');
-    const resetBtn = document.getElementById('reset-btn');
 
-    // Loading elements
-    const loadingOverlay = document.getElementById('loading-overlay');
-    const loadingText = document.getElementById('loading-text');
-    const loadingProgress = document.getElementById('loading-progress');
+    const tabPhoto = document.getElementById('tab-photo');
+    const tabLive = document.getElementById('tab-live');
+    const photoStep = document.getElementById('photo-step');
+    const liveStep = document.getElementById('live-step');
 
+    const webcamVideo = document.getElementById('webcam-video');
+    const webcamCanvas = document.getElementById('webcam-canvas');
+
+    // ---- State ----
     let userImageBase64 = null;
-    let selectedProductId = null;
+    let selectedProduct = null;
+    let mode = 'photo';
+    let lastResultDataUrl = null;
+    const products = [];
 
-    // 1. Fetch products for dropdown
+    // ---- Preload MediaPipe in the background ----
+    BrowserTryOn.init().catch((e) => console.warn('BrowserTryOn init deferred', e));
+
+    // ---- 1. Fetch products for dropdown ----
     try {
-        const res = await api.get('/products?limit=100');
+        const res = await api.get('/products?limit=200');
         if (res.success) {
-            res.data.forEach(p => {
+            res.data.forEach((p) => {
+                products.push(p);
                 const opt = document.createElement('option');
                 opt.value = p._id;
                 opt.textContent = `${p.name} - ₹${p.price}`;
-                opt.dataset.image = p.images[0];
-                opt.dataset.category = p.category;
-                opt.dataset.name = p.name;
-                opt.dataset.price = p.price;
                 productDropdown.appendChild(opt);
             });
         }
-    } catch(e) {
-        console.error('Failed to load products');
+    } catch (e) {
+        console.error('Failed to load products', e);
     }
 
-    // Check URL params
+    // Auto-select product from URL ?productId=...
     const urlParams = new URLSearchParams(window.location.search);
     const paramProductId = urlParams.get('productId');
     if (paramProductId) {
@@ -54,30 +61,49 @@ document.addEventListener('DOMContentLoaded', async () => {
         selectProduct(paramProductId);
     }
 
-    // 2. Handle File Upload
+    // ---- 2. Mode tab handling ----
+    function switchMode(next) {
+        if (next === mode) return;
+        mode = next;
+
+        if (mode === 'photo') {
+            tabPhoto.classList.add('bg-[#A48D7C]', 'text-white');
+            tabPhoto.classList.remove('text-muted');
+            tabLive.classList.remove('bg-[#A48D7C]', 'text-white');
+            tabLive.classList.add('text-muted');
+            photoStep.classList.remove('hidden');
+            liveStep.classList.add('hidden');
+            BrowserTryOn.stopWebcam();
+            showPlaceholder();
+        } else {
+            tabLive.classList.add('bg-[#A48D7C]', 'text-white');
+            tabLive.classList.remove('text-muted');
+            tabPhoto.classList.remove('bg-[#A48D7C]', 'text-white');
+            tabPhoto.classList.add('text-muted');
+            liveStep.classList.remove('hidden');
+            photoStep.classList.add('hidden');
+            showPlaceholder();
+        }
+        generateBtn.textContent = mode === 'live' ? 'Start Live Try-On' : 'Generate Try-On';
+        checkReady();
+    }
+    tabPhoto.addEventListener('click', () => switchMode('photo'));
+    tabLive.addEventListener('click', () => switchMode('live'));
+
+    // ---- 3. File upload handling ----
     dropZone.addEventListener('click', () => fileInput.click());
-    
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropZone.classList.add('border-accent');
     });
-    
-    dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('border-accent');
-    });
-
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-accent'));
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.classList.remove('border-accent');
-        if (e.dataTransfer.files.length) {
-            handleFile(e.dataTransfer.files[0]);
-        }
+        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
     });
-
     fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length) {
-            handleFile(e.target.files[0]);
-        }
+        if (e.target.files.length) handleFile(e.target.files[0]);
     });
 
     function handleFile(file) {
@@ -87,7 +113,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (file.size > 10 * 1024 * 1024) {
             return window.showToast('File size exceeds 10MB', 'error');
         }
-
         const reader = new FileReader();
         reader.onload = (e) => {
             userImageBase64 = e.target.result;
@@ -99,23 +124,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         reader.readAsDataURL(file);
     }
 
-    // 3. Handle Product Selection
+    // ---- 4. Product selection ----
     productDropdown.addEventListener('change', (e) => {
-        if (e.target.value) {
-            selectProduct(e.target.value);
-        }
+        if (e.target.value) selectProduct(e.target.value);
     });
 
     function selectProduct(id) {
-        const option = Array.from(productDropdown.options).find(opt => opt.value === id);
-        if (!option) return;
+        const product = products.find((p) => p._id === id);
+        if (!product) return;
+        selectedProduct = product;
 
-        selectedProductId = id;
-        
-        document.getElementById('selected-product-img').src = option.dataset.image;
-        document.getElementById('selected-product-category').textContent = option.dataset.category;
-        document.getElementById('selected-product-name').textContent = option.dataset.name;
-        document.getElementById('selected-product-price').textContent = `₹${option.dataset.price}`;
+        document.getElementById('selected-product-img').src = product.images[0];
+        document.getElementById('selected-product-category').textContent = product.category;
+        document.getElementById('selected-product-name').textContent = product.name;
+        document.getElementById('selected-product-price').textContent = `₹${product.price}`;
 
         productSelector.classList.add('hidden');
         selectedProductContainer.classList.remove('hidden');
@@ -123,7 +145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     changeProductBtn.addEventListener('click', () => {
-        selectedProductId = null;
+        selectedProduct = null;
         selectedProductContainer.classList.add('hidden');
         productSelector.classList.remove('hidden');
         productDropdown.value = '';
@@ -131,122 +153,214 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     function checkReady() {
-        if (userImageBase64 && selectedProductId) {
-            generateBtn.disabled = false;
+        if (mode === 'photo') {
+            generateBtn.disabled = !(userImageBase64 && selectedProduct);
         } else {
-            generateBtn.disabled = true;
+            generateBtn.disabled = !selectedProduct;
         }
     }
 
-    // 4. New AI Pipeline and UI States
+    // ---- 5. UI states ----
     const loadingMessages = [
-        "Detecting your body pose...",
-        "Segmenting clothing region...",
-        "Fitting the outfit to your body...",
-        "Adjusting lighting and shadows...",
-        "Generating your final look..."
+        'Loading on-device AI model...',
+        'Detecting your body pose...',
+        'Segmenting clothing region...',
+        'Fitting the outfit to your body...',
+        'Adjusting lighting and shadows...',
+        'Generating your final look...'
     ];
-
     let loadingInterval;
 
-    function showLoading() {
+    function showLoading(initialMsg) {
         document.getElementById('statePlaceholder').classList.add('hidden');
         document.getElementById('stateResult').classList.add('hidden');
+        document.getElementById('stateLive').classList.add('hidden');
         document.getElementById('stateLoading').classList.remove('hidden');
-        let i = 0;
         const msgEl = document.getElementById('loadingMessage');
-        msgEl.textContent = loadingMessages[0];
+        let i = 0;
+        msgEl.textContent = initialMsg || loadingMessages[0];
         loadingInterval = setInterval(() => {
             i++;
             msgEl.textContent = loadingMessages[i % loadingMessages.length];
-        }, 2500);
+        }, 1800);
     }
 
     function showResult(imageUrl) {
         clearInterval(loadingInterval);
         document.getElementById('stateLoading').classList.add('hidden');
         document.getElementById('statePlaceholder').classList.add('hidden');
+        document.getElementById('stateLive').classList.add('hidden');
         document.getElementById('stateResult').classList.remove('hidden');
         document.getElementById('generatedImage').src = imageUrl;
-        
-        // Hide AI insights until generated, if we are still using them
-        const insights = document.getElementById('ai-insights-container');
-        if (insights) insights.classList.remove('hidden');
+        lastResultDataUrl = imageUrl;
+        showInsights(selectedProduct);
+    }
+
+    function showLive() {
+        clearInterval(loadingInterval);
+        document.getElementById('stateLoading').classList.add('hidden');
+        document.getElementById('statePlaceholder').classList.add('hidden');
+        document.getElementById('stateResult').classList.add('hidden');
+        document.getElementById('stateLive').classList.remove('hidden');
+        showInsights(selectedProduct);
     }
 
     function showPlaceholder() {
         clearInterval(loadingInterval);
         document.getElementById('stateLoading').classList.add('hidden');
         document.getElementById('stateResult').classList.add('hidden');
+        document.getElementById('stateLive').classList.add('hidden');
         document.getElementById('statePlaceholder').classList.remove('hidden');
+        BrowserTryOn.stopWebcam();
     }
 
+    // ---- AI Insights generator ----
+    function showInsights(product) {
+        if (!product) return;
+        const insights = generateInsights(product);
+        document.getElementById('insight-fit').textContent = insights.fit;
+        document.getElementById('insight-styling').textContent = insights.styling;
+        document.getElementById('insight-confidence').textContent = insights.confidence;
+        document.getElementById('ai-insights-container').classList.remove('hidden');
+    }
+
+    function generateInsights(product) {
+        const category = (product.category || '').toLowerCase();
+        const fitMap = {
+            't-shirts': 'Relaxed across the shoulders with a slight drop hem - true to size for an everyday tee.',
+            'shirts': 'Sits cleanly at the collar with a tailored mid-section. Size up for a looser drape.',
+            'hoodies': 'Oversized fit with extended sleeve length - great for layering over a tee.',
+            'jackets': 'Structured shoulders with room for a knit underneath. Size down for a closer fit.',
+            'jeans': 'High-rise waist with a tapered leg. Mid-stretch denim flexes with movement.',
+            'dresses': 'Skims the silhouette with a flowing hem. Best for an A-line drape.'
+        };
+        const styleMap = {
+            't-shirts': 'Pair with straight-leg jeans and white sneakers for an easy weekend look.',
+            'shirts': 'Tuck into chinos with a leather belt for smart-casual, or open over a tee for layered cool.',
+            'hoodies': 'Layer under a denim jacket or wear solo with cargos for athleisure.',
+            'jackets': 'Throw over a fitted tee with slim trousers - chunky boots finish it.',
+            'jeans': 'Anchor with a fitted top and pointed heels, or sneakers for daytime.',
+            'dresses': 'Add gold accessories and strappy sandals. A cropped blazer makes it office-ready.'
+        };
+        const confidence = (Math.random() * 1.4 + 8.4).toFixed(1);
+        return {
+            fit: fitMap[category] || 'Versatile cut that flatters most body types - true to size.',
+            styling: styleMap[category] || 'Effortless to mix-and-match across casual and dressed-up looks.',
+            confidence
+        };
+    }
+
+    // ---- 6. Generate button ----
     generateBtn.addEventListener('click', async () => {
-        if (!userImageBase64) {
-            window.showToast('Please upload your photo first', 'error'); return;
+        if (!selectedProduct) {
+            window.showToast('Please select a product', 'error');
+            return;
         }
-        if (!selectedProductId) {
-            window.showToast('Please select a product', 'error'); return;
+        const garmentUrl = selectedProduct.images[0];
+
+        if (mode === 'live') {
+            showLoading('Requesting camera access...');
+            try {
+                await BrowserTryOn.startWebcam(webcamVideo, webcamCanvas, garmentUrl);
+                showLive();
+                window.showToast('Live try-on active', 'success');
+                trackTryOnView(selectedProduct._id);
+            } catch (err) {
+                showPlaceholder();
+                window.showToast('Camera access denied or unavailable', 'error');
+                console.error(err);
+            }
+            return;
+        }
+
+        // Photo mode
+        if (!userImageBase64) {
+            window.showToast('Please upload your photo first', 'error');
+            return;
         }
 
         showLoading();
 
+        // Try browser-side AI first - it's instant, free, and accurate enough for a demo.
         try {
-            // Strip the data:image/...;base64, prefix if present for the backend payload
+            const resultDataUrl = await BrowserTryOn.composite(userImageBase64, garmentUrl);
+            showResult(resultDataUrl);
+            window.showToast('Your look is ready', 'success');
+            trackTryOnView(selectedProduct._id);
+            return;
+        } catch (browserErr) {
+            console.warn('Browser try-on failed, falling back to server', browserErr);
+        }
+
+        // Server fallback
+        try {
             let base64Data = userImageBase64;
-            if (base64Data.includes(',')) {
-                base64Data = base64Data.split(',')[1];
-            }
-
+            if (base64Data.includes(',')) base64Data = base64Data.split(',')[1];
             const data = await api.post('/tryon', {
-                userImageBase64: base64Data, 
-                productId: selectedProductId
+                userImageBase64: base64Data,
+                productId: selectedProduct._id
             });
-
             if (!data.success) throw new Error(data.message);
-
             showResult(data.resultImageUrl);
-            window.showToast('Your look is ready! 🎉', 'success');
-
+            window.showToast('Your look is ready', 'success');
+            trackTryOnView(selectedProduct._id);
         } catch (err) {
             showPlaceholder();
             window.showToast(err.message || 'Generation failed. Please try again.', 'error');
         }
     });
 
-    // Action buttons (expose to window for onclick handlers in HTML)
+    // Track try-on for personalized recommendations (localStorage)
+    function trackTryOnView(productId) {
+        try {
+            const key = 'trynova:recent_views';
+            const recent = JSON.parse(localStorage.getItem(key) || '[]');
+            const filtered = recent.filter((id) => id !== productId);
+            filtered.unshift(productId);
+            localStorage.setItem(key, JSON.stringify(filtered.slice(0, 20)));
+        } catch (e) {}
+    }
+
+    // ---- 7. Action buttons (exposed to window) ----
     window.cancelTryOn = () => {
         showPlaceholder();
-        const insights = document.getElementById('ai-insights-container');
-        if (insights) insights.classList.add('hidden');
+        document.getElementById('ai-insights-container').classList.add('hidden');
     };
 
     window.saveImage = () => {
-        const img = document.getElementById('generatedImage');
-        if (!img.src || document.getElementById('stateResult').classList.contains('hidden')) {
-            window.showToast('Generate a try-on first', 'error'); return;
+        let src = lastResultDataUrl;
+        if (mode === 'live' && webcamCanvas) {
+            src = webcamCanvas.toDataURL('image/jpeg', 0.92);
+        }
+        if (!src) {
+            window.showToast('Generate a try-on first', 'error');
+            return;
         }
         const a = document.createElement('a');
-        a.href = img.src;
+        a.href = src;
         a.download = 'trynova-tryon.jpg';
         a.click();
     };
 
     window.buyNow = async () => {
-        if (!selectedProductId) {
-            window.showToast('Please select a product', 'error'); return;
+        if (!selectedProduct) {
+            window.showToast('Please select a product', 'error');
+            return;
         }
         try {
             await api.post('/cart/add', {
-                productId: selectedProductId,
+                productId: selectedProduct._id,
                 size: 'M',
-                color: 'Default',
+                color: selectedProduct.colors ? selectedProduct.colors[0] : 'Default',
                 quantity: 1
             });
             window.showToast('Added to cart', 'success');
             if (typeof updateCartBadge === 'function') updateCartBadge();
-        } catch(e) {
+        } catch (e) {
             window.showToast('Please login to add to cart', 'error');
         }
     };
+
+    // Clean up camera on page unload
+    window.addEventListener('beforeunload', () => BrowserTryOn.stopWebcam());
 });

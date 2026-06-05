@@ -44,6 +44,18 @@
             <div id="cart-items" class="space-y-6">
                 <div class="text-muted py-10" id="cart-loading">Loading cart...</div>
             </div>
+
+            <!-- AI Complete the Look -->
+            <div id="complete-look-section" class="mt-16 hidden">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold flex items-center gap-2">
+                        <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        Complete the Look
+                    </h2>
+                    <span class="text-[10px] uppercase tracking-widest text-muted">AI Curated</span>
+                </div>
+                <div id="complete-look-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+            </div>
         </div>
 
         <!-- Right: Summary -->
@@ -155,6 +167,38 @@
 
             updateSummary(subtotal);
             updateCartBadge();
+            loadCompleteTheLook(items);
+        }
+
+        async function loadCompleteTheLook(items) {
+            const section = document.getElementById('complete-look-section');
+            const grid = document.getElementById('complete-look-grid');
+            if (!items || !items.length) {
+                section.classList.add('hidden');
+                return;
+            }
+            // Use the first cart item as the anchor product.
+            const anchor = items.find(i => i.productId && i.productId._id);
+            if (!anchor) return;
+            try {
+                const res = await api.get(`/recommendations/complete-the-look?productId=${anchor.productId._id}`);
+                if (!res.data || !res.data.length) return;
+                section.classList.remove('hidden');
+                grid.innerHTML = res.data.slice(0, 4).map(p => `
+                    <a href="product.html?id=${p._id}" class="bg-surface rounded-xl overflow-hidden group block">
+                        <div class="aspect-[4/5] overflow-hidden bg-secondary">
+                            <img src="${p.images[0]}" class="w-full h-full object-cover group-hover:scale-105 smooth-transition">
+                        </div>
+                        <div class="p-3">
+                            <div class="text-[10px] text-muted uppercase">${p.category}</div>
+                            <h4 class="text-sm font-medium truncate mb-1">${p.name}</h4>
+                            <div class="text-accent text-sm font-semibold">₹${p.price}</div>
+                        </div>
+                    </a>
+                `).join('');
+            } catch (e) {
+                console.warn('complete-the-look fetch failed', e);
+            }
         }
 
         async function updateQty(itemId, newQty) {

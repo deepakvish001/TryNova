@@ -125,12 +125,25 @@
             </div>
         </div>
 
-        <!-- Recommendations -->
+        <!-- Complete the Look -->
         <div class="mt-24">
-            <h2 class="text-2xl font-bold mb-8">Complete the Look</h2>
-            <div id="rec-grid" class="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <!-- Skeletons... -->
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-2xl font-bold">Complete the Look</h2>
+                <span class="text-[10px] uppercase tracking-widest text-muted">AI Curated</span>
             </div>
+            <div id="rec-grid" class="grid grid-cols-2 md:grid-cols-4 gap-6"></div>
+        </div>
+
+        <!-- More like this -->
+        <div class="mt-20">
+            <h2 class="text-2xl font-bold mb-8">More Like This</h2>
+            <div id="similar-grid" class="grid grid-cols-2 md:grid-cols-4 gap-6"></div>
+        </div>
+
+        <!-- Recently Viewed -->
+        <div class="mt-20" id="recent-section" style="display:none">
+            <h2 class="text-2xl font-bold mb-8">Recently Viewed</h2>
+            <div id="recent-grid" class="grid grid-cols-2 md:grid-cols-4 gap-6"></div>
         </div>
     </main>
 
@@ -153,9 +166,47 @@
                 const res = await api.get(`/products/${productId}`);
                 currentProduct = res.data;
                 renderProduct(currentProduct);
-                fetchRecommendations(currentProduct.category);
+                trackRecentView(currentProduct);
+                fetchCompleteTheLook(productId);
+                fetchSimilar(currentProduct.category);
+                renderRecentlyViewed(productId);
             } catch(e) {
                 document.getElementById('product-container').innerHTML = '<div class="text-red-500 py-10">Product not found</div>';
+            }
+
+            function trackRecentView(product) {
+                try {
+                    const key = 'trynova:recent_products';
+                    const list = JSON.parse(localStorage.getItem(key) || '[]');
+                    const filtered = list.filter(p => p._id !== product._id);
+                    filtered.unshift({
+                        _id: product._id,
+                        name: product.name,
+                        price: product.price,
+                        category: product.category,
+                        image: product.images[0]
+                    });
+                    localStorage.setItem(key, JSON.stringify(filtered.slice(0, 12)));
+                } catch (e) {}
+            }
+
+            function renderRecentlyViewed(excludeId) {
+                try {
+                    const list = JSON.parse(localStorage.getItem('trynova:recent_products') || '[]')
+                        .filter(p => p._id !== excludeId).slice(0, 4);
+                    if (!list.length) return;
+                    document.getElementById('recent-section').style.display = '';
+                    const grid = document.getElementById('recent-grid');
+                    grid.innerHTML = list.map(p => `
+                        <a href="product.html?id=${p._id}" class="bg-surface rounded-xl overflow-hidden group block">
+                            <div class="h-64 overflow-hidden"><img src="${p.image}" class="w-full h-full object-cover group-hover:scale-105 smooth-transition"></div>
+                            <div class="p-3">
+                                <h4 class="text-sm font-medium truncate mb-1">${p.name}</h4>
+                                <div class="text-accent text-sm font-semibold">₹${p.price}</div>
+                            </div>
+                        </a>
+                    `).join('');
+                } catch (e) {}
             }
 
             function renderProduct(p) {
@@ -238,27 +289,41 @@
                 });
             }
 
-            async function fetchRecommendations(category) {
+            function renderCard(p) {
+                return `
+                    <div class="bg-surface rounded-xl overflow-hidden group">
+                        <a href="product.html?id=${p._id}" class="block h-64 overflow-hidden relative">
+                            <img src="${p.images[0]}" class="w-full h-full object-cover group-hover:scale-105 smooth-transition">
+                            <span class="absolute top-2 left-2 bg-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">${p.category}</span>
+                        </a>
+                        <div class="p-3">
+                            <h4 class="text-sm font-medium truncate mb-1">${p.name}</h4>
+                            <div class="text-accent text-sm font-semibold">₹${p.price}</div>
+                        </div>
+                    </div>`;
+            }
+
+            async function fetchCompleteTheLook(pid) {
                 const grid = document.getElementById('rec-grid');
                 try {
-                    const res = await api.get(`/products/recommendations?category=${category}`);
-                    grid.innerHTML = '';
-                    res.data.forEach(p => {
-                        if (p._id === productId) return;
-                        grid.innerHTML += `
-                            <div class="bg-surface rounded-xl overflow-hidden group">
-                                <a href="product.html?id=${p._id}" class="block h-64 overflow-hidden">
-                                    <img src="${p.images[0]}" class="w-full h-full object-cover group-hover:scale-105 smooth-transition">
-                                </a>
-                                <div class="p-3">
-                                    <h4 class="text-sm font-medium truncate mb-1">${p.name}</h4>
-                                    <div class="text-accent text-sm font-semibold">₹${p.price}</div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                } catch(e) {
-                    grid.innerHTML = '<p>No recommendations found.</p>';
+                    const res = await api.get(`/recommendations/complete-the-look?productId=${pid}`);
+                    if (!res.data || !res.data.length) {
+                        grid.innerHTML = '<p class="col-span-full text-muted text-sm">No styling pairs available.</p>';
+                        return;
+                    }
+                    grid.innerHTML = res.data.slice(0, 4).map(renderCard).join('');
+                } catch (e) {
+                    grid.innerHTML = '<p class="col-span-full text-muted text-sm">Could not load styling pairs.</p>';
+                }
+            }
+
+            async function fetchSimilar(category) {
+                const grid = document.getElementById('similar-grid');
+                try {
+                    const res = await api.get(`/products/recommendations?category=${encodeURIComponent(category)}&excludeId=${productId}`);
+                    grid.innerHTML = (res.data || []).slice(0, 4).map(renderCard).join('');
+                } catch (e) {
+                    grid.innerHTML = '<p class="col-span-full text-muted text-sm">No similar items.</p>';
                 }
             }
 

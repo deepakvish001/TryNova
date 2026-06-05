@@ -5,9 +5,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const applyFiltersBtn = document.getElementById('apply-filters');
     const sortDropdown = document.getElementById('sort-dropdown');
     const paginationControls = document.getElementById('pagination-controls');
+    const searchInput = document.getElementById('search-input');
 
     let currentPage = 1;
     const limit = 12;
+    let searchTerm = '';
+    let searchDebounce = null;
+
+    // Read URL ?category=... &gender=... &search=... so we can deep-link.
+    const params = new URLSearchParams(window.location.search);
+    const urlCategory = params.get('category');
+    const urlGender = params.get('gender');
+    const urlSearch = params.get('search');
+    if (urlCategory) {
+        const el = document.querySelector(`input[name="category"][value="${urlCategory}"]`);
+        if (el) el.checked = true;
+    }
+    if (urlGender) {
+        const el = document.querySelector(`input[name="gender"][value="${urlGender}"]`);
+        if (el) el.checked = true;
+    }
+    if (urlSearch && searchInput) {
+        searchInput.value = urlSearch;
+        searchTerm = urlSearch;
+    }
 
     function renderSkeletons() {
         productGrid.innerHTML = '';
@@ -39,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (category !== 'All') queryParams.append('category', category);
         if (gender !== 'All') queryParams.append('gender', gender);
+        if (searchTerm) queryParams.append('search', searchTerm);
 
         try {
             const res = await api.get(`/products?${queryParams.toString()}`);
@@ -106,6 +128,17 @@ document.addEventListener('DOMContentLoaded', () => {
         currentPage = 1;
         fetchProducts();
     });
+
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(() => {
+                searchTerm = e.target.value.trim();
+                currentPage = 1;
+                fetchProducts();
+            }, 250);
+        });
+    }
 
     window.addToFavorites = async (productId) => {
         try {
