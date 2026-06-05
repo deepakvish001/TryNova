@@ -71,6 +71,35 @@
                     </div>
                 </div>
 
+                <!-- Style DNA -->
+                <div id="style-dna-card" class="bg-gradient-to-br from-primary to-accent text-white rounded-2xl p-8 shadow-sm hidden">
+                    <div class="flex items-start justify-between mb-6">
+                        <div>
+                            <div class="text-[10px] uppercase tracking-widest opacity-70 mb-1">Style DNA</div>
+                            <h2 class="text-2xl font-serif">Your Fashion Fingerprint</h2>
+                        </div>
+                        <svg class="w-8 h-8 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        <div>
+                            <div class="text-[10px] uppercase tracking-widest opacity-60 mb-1">Top Category</div>
+                            <div class="text-lg font-bold" id="dna-category">—</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-widest opacity-60 mb-1">Style For</div>
+                            <div class="text-lg font-bold" id="dna-gender">—</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-widest opacity-60 mb-1">Favourite Colour</div>
+                            <div class="text-lg font-bold" id="dna-color">—</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] uppercase tracking-widest opacity-60 mb-1">Avg Spend</div>
+                            <div class="text-lg font-bold" id="dna-spend">—</div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Personalized Recommendations -->
                 <div class="bg-surface rounded-2xl p-8 shadow-sm">
                     <div class="flex items-center justify-between mb-2">
@@ -194,6 +223,16 @@
                     if (res.profile.topColor) bits.push(`loves <span class="text-accent font-semibold">${res.profile.topColor}</span>`);
                     if (res.profile.avgPrice) bits.push(`avg spend <span class="text-accent font-semibold">₹${res.profile.avgPrice}</span>`);
                     if (bits.length) reasonEl.innerHTML = 'Your taste signal: ' + bits.join(' · ');
+
+                    // Light up Style DNA card
+                    const card = document.getElementById('style-dna-card');
+                    if (card) {
+                        card.classList.remove('hidden');
+                        document.getElementById('dna-category').textContent = res.profile.topCategory || '—';
+                        document.getElementById('dna-gender').textContent = res.profile.topGender || '—';
+                        document.getElementById('dna-color').textContent = res.profile.topColor || '—';
+                        document.getElementById('dna-spend').textContent = res.profile.avgPrice ? `₹${res.profile.avgPrice}` : '—';
+                    }
                 } else if (res.reason === 'trending') {
                     reasonEl.textContent = "You're new here — these are our trending picks this week.";
                 }
