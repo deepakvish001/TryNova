@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+mediapipe
+opencv-python
+rembg
+Pillow
+requests
+replicate
+numpy
+python-multipart

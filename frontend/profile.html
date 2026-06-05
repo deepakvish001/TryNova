@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - TryNova</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+                tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: '#EBE1D7',
+                        surface: '#FFFFFF',
+                        secondary: '#F5F2EF',
+                        primary: '#2D241E',
+                        muted: '#7A6B61',
+                        accent: '#5C4332',
+                        'accent-hover': '#423023'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-base text-primary font-sans antialiased">
+    
+    <nav class="w-full glass-panel border-b border-accent/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+            <a href="index.html" class="text-2xl font-bold tracking-tighter text-white">Try<span class="text-accent">Nova</span></a>
+            <div class="flex items-center space-x-4">
+                <a href="shop.html" class="text-sm text-muted hover:text-accent">Shop</a>
+                <button onclick="logout()" class="text-sm text-red-400 hover:text-red-500">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-16 flex flex-col md:flex-row gap-12">
+        
+        <!-- Sidebar -->
+        <aside class="w-full md:w-64 shrink-0">
+            <h1 class="text-3xl font-serif font-bold mb-10 text-primary">My Account</h1>
+            
+            <div class="space-y-4">
+                <button onclick="switchTab('looks')" id="tab-looks" class="w-full text-left text-sm font-bold uppercase tracking-widest text-primary smooth-transition">Overview</button>
+                <button onclick="switchTab('orders')" id="tab-orders" class="w-full text-left text-sm font-semibold uppercase tracking-widest text-muted hover:text-primary smooth-transition">Recent Orders</button>
+                <button onclick="switchTab('size')" id="tab-size" class="w-full text-left text-sm font-semibold uppercase tracking-widest text-muted hover:text-primary smooth-transition">Wishlist</button>
+                <button onclick="switchTab('settings')" id="tab-settings" class="w-full text-left text-sm font-semibold uppercase tracking-widest text-muted hover:text-primary smooth-transition">Account Settings</button>
+                <div class="pt-8 mt-8 border-t border-accent/10">
+                    <button onclick="logout()" class="w-full text-left text-sm font-semibold uppercase tracking-widest text-muted hover:text-red-500 smooth-transition">Log Out</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Content -->
+        <div class="flex-1" id="tab-content">
+            
+            <!-- Saved Looks / Overview -->
+            <div id="content-looks" class="block space-y-8">
+                <!-- User Info Card -->
+                <div class="bg-surface rounded-2xl p-8 shadow-sm flex items-center gap-6">
+                    <div class="w-20 h-20 bg-accent rounded-full text-white text-3xl font-serif flex items-center justify-center uppercase" id="profile-avatar">?</div>
+                    <div>
+                        <h2 class="text-2xl font-bold font-serif" id="profile-name">Loading...</h2>
+                        <p class="text-sm text-muted" id="profile-email"></p>
+                    </div>
+                </div>
+
+                <div class="bg-surface rounded-2xl p-8 shadow-sm">
+                    <h2 class="text-xl font-bold uppercase tracking-wide mb-6">My Saved Looks</h2>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        <div class="col-span-full text-muted text-sm">You haven't saved any AI generated looks yet. Go to <a href="tryOn.html" class="text-accent font-semibold hover:underline">AI Try-On</a> to create some!</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders -->
+            <div id="content-orders" class="hidden">
+                <div class="bg-surface rounded-2xl p-8 shadow-sm">
+                    <h2 class="text-xl font-bold uppercase tracking-wide mb-6">Recent Orders</h2>
+                    <div id="orders-list" class="space-y-6">
+                        <div class="text-muted text-sm">Loading orders...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wishlist (Replacing Size Profile for UI match) -->
+            <div id="content-size" class="hidden">
+                <div class="bg-surface rounded-2xl p-8 shadow-sm">
+                    <h2 class="text-xl font-bold uppercase tracking-wide mb-6">Wishlist</h2>
+                    <div class="text-muted text-sm">Your wishlist is currently empty. Start exploring the <a href="shop.html" class="text-accent font-semibold hover:underline">shop</a>!</div>
+                </div>
+            </div>
+
+            <!-- Settings -->
+            <div id="content-settings" class="hidden">
+                <div class="bg-surface rounded-2xl p-8 shadow-sm">
+                    <h2 class="text-xl font-bold uppercase tracking-wide mb-6">Account Settings</h2>
+                    <form class="space-y-6 max-w-md">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-widest text-muted mb-2">Name</label>
+                            <input type="text" id="settings-name" class="w-full bg-secondary border border-transparent text-primary rounded-xl px-4 py-3 focus:border-accent focus:bg-white focus:outline-none text-sm font-medium smooth-transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-widest text-muted mb-2">Email</label>
+                            <input type="email" id="settings-email" class="w-full bg-secondary border border-transparent text-primary rounded-xl px-4 py-3 focus:border-accent focus:bg-white focus:outline-none text-sm font-medium smooth-transition" readonly>
+                        </div>
+                        <button type="button" class="bg-primary text-white px-8 py-3 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg hover:bg-gray-800 smooth-transition mt-4">Update Details</button>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        const tabs = ['looks', 'orders', 'size', 'settings'];
+
+        function switchTab(activeTab) {
+            tabs.forEach(tab => {
+                const btn = document.getElementById(`tab-${tab}`);
+                const content = document.getElementById(`content-${tab}`);
+                
+                if(tab === activeTab) {
+                    btn.classList.replace('text-muted', 'text-primary');
+                    btn.classList.replace('font-semibold', 'font-bold');
+                    content.classList.replace('hidden', 'block');
+                    if(tab === 'orders') loadOrders();
+                } else {
+                    btn.classList.replace('text-primary', 'text-muted');
+                    btn.classList.replace('font-bold', 'font-semibold');
+                    content.classList.replace('block', 'hidden');
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('token');
+            if(!token) {
+                window.location.href = 'signin.html';
+                return;
+            }
+
+            try {
+                const res = await api.get('/auth/me');
+                const user = res.data;
+                document.getElementById('profile-name').textContent = user.name;
+                document.getElementById('profile-email').textContent = user.email;
+                document.getElementById('profile-avatar').textContent = user.name.charAt(0);
+                
+                document.getElementById('settings-name').value = user.name;
+                document.getElementById('settings-email').value = user.email;
+            } catch(e) {
+                logout();
+            }
+        });
+
+        async function loadOrders() {
+            try {
+                const res = await api.get('/orders');
+                const list = document.getElementById('orders-list');
+                if(!res.data || res.data.length === 0) {
+                    list.innerHTML = '<div class="text-muted">You have no orders yet.</div>';
+                    return;
+                }
+
+                list.innerHTML = '';
+                res.data.forEach(order => {
+                    list.innerHTML += `
+                        <div class="border border-accent/10 rounded-xl p-4 bg-dark">
+                            <div class="flex justify-between items-center mb-4 border-b border-accent/10 pb-3">
+                                <div>
+                                    <div class="text-sm text-muted">Order #${order._id.substring(0, 8).toUpperCase()}</div>
+                                    <div class="text-xs text-muted">${new Date(order.createdAt).toLocaleDateString()}</div>
+                                </div>
+                                <div class="px-3 py-1 rounded-full text-xs font-semibold bg-accent/20 text-accent capitalize">${order.status}</div>
+                            </div>
+                            <div class="space-y-3">
+                                ${order.items.map(item => `
+                                    <div class="flex gap-4">
+                                        <img src="${item.image}" class="w-16 h-20 object-cover rounded bg-surface">
+                                        <div class="flex-1">
+                                            <div class="text-sm font-medium">${item.name}</div>
+                                            <div class="text-xs text-muted">Size: ${item.size} | Qty: ${item.quantity}</div>
+                                        </div>
+                                        <div class="font-bold text-sm">₹${item.price}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-accent/10 flex justify-between font-bold">
+                                <span>Total</span>
+                                <span class="text-accent">₹${order.total}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch(e) {
+                document.getElementById('orders-list').innerHTML = '<div class="text-red-500">Failed to load orders</div>';
+            }
+        }
+    </script>
+</body>
+</html>

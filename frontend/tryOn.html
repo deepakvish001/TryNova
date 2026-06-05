@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Try-On - TryNova</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+                tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: '#EBE1D7',
+                        surface: '#FFFFFF',
+                        secondary: '#F5F2EF',
+                        primary: '#2D241E',
+                        muted: '#7A6B61',
+                        accent: '#5C4332',
+                        'accent-hover': '#423023'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-base text-primary font-sans antialiased">
+    
+    <!-- Navbar (simplified for tryon) -->
+    <nav class="w-full glass-panel border-b border-accent/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <a href="index.html" class="text-2xl font-bold tracking-tighter text-white">
+                        Try<span class="text-accent">Nova</span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="shop.html" class="text-sm text-muted hover:text-accent">Back to Shop</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="min-h-[calc(100vh-64px)] flex items-center justify-center p-4">
+        <!-- Modal Container -->
+        <div class="w-full max-w-5xl bg-surface rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row">
+            
+            <!-- Left Panel -->
+            <div class="w-full md:w-5/12 p-8 md:p-12 bg-surface flex flex-col border-r border-accent/10">
+                
+                <!-- Tabs -->
+                <div class="flex space-x-2 mb-10 border-b border-accent/10 pb-4">
+                    <button class="bg-[#A48D7C] text-white px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider">AI Try-On</button>
+                    <button class="text-muted hover:text-primary px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider smooth-transition">Upload Photo</button>
+                    <button class="text-muted hover:text-primary px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider smooth-transition">Adjust Fit</button>
+                </div>
+                
+                <h1 class="text-3xl font-serif font-bold text-primary mb-2">See Yourself in the Clothes!</h1>
+                <p class="text-muted text-sm mb-8">Upload a full-body photo, choose any product, and let our AI show you exactly how it fits.</p>
+
+                <!-- STEP 1: Upload Photo -->
+                <div class="mb-6">
+                    <div id="drop-zone" class="border-2 border-dashed border-accent/30 bg-secondary rounded-xl p-4 text-center cursor-pointer hover:border-accent smooth-transition relative overflow-hidden h-32 flex flex-col items-center justify-center">
+                        <input type="file" id="file-input" class="hidden" accept="image/jpeg, image/png, image/webp">
+                        <div id="drop-content">
+                            <svg class="w-8 h-8 text-muted mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                            <p class="text-primary text-sm font-medium">Click to upload photo</p>
+                        </div>
+                        <img id="image-preview" class="hidden absolute inset-0 w-full h-full object-cover" src="" alt="Preview">
+                    </div>
+                </div>
+                
+                <!-- STEP 2: Select Product -->
+                <div class="mb-8">
+                    <div id="selected-product-container" class="hidden flex gap-4 p-3 bg-secondary rounded-xl mb-3 relative">
+                        <img id="selected-product-img" src="" alt="" class="w-16 h-20 object-cover rounded shadow">
+                        <div class="pt-1">
+                            <div id="selected-product-category" class="text-[10px] text-muted uppercase tracking-wider font-semibold"></div>
+                            <h3 id="selected-product-name" class="font-bold text-primary text-sm leading-tight mt-1 mb-1 pr-8"></h3>
+                            <div id="selected-product-price" class="text-primary font-bold text-sm"></div>
+                        </div>
+                        <button id="change-product-btn" class="absolute top-3 right-3 text-xs text-muted hover:text-accent underline">Change</button>
+                    </div>
+
+                    <div id="product-selector">
+                        <select id="product-dropdown" class="w-full bg-secondary border border-accent/20 text-primary rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-accent text-sm">
+                            <option value="">Choose a product...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Sizes (Static UI) -->
+                <div class="mb-8 hidden" id="size-selector">
+                    <div class="text-xs uppercase font-bold tracking-wider text-muted mb-3">Select Size</div>
+                    <div class="flex space-x-3">
+                        <button class="w-10 h-10 rounded-full border border-accent/20 text-sm font-semibold hover:border-accent smooth-transition text-primary">S</button>
+                        <button class="w-10 h-10 rounded-full bg-primary text-white text-sm font-semibold border border-primary">M</button>
+                        <button class="w-10 h-10 rounded-full border border-accent/20 text-sm font-semibold hover:border-accent smooth-transition text-primary">L</button>
+                        <button class="w-10 h-10 rounded-full border border-accent/20 text-sm font-semibold hover:border-accent smooth-transition text-primary">XL</button>
+                    </div>
+                </div>
+
+                <div class="mt-auto">
+                    <button id="generate-btn" class="w-full bg-accent hover:bg-accent-hover text-white py-4 rounded-full text-sm font-bold uppercase tracking-widest smooth-transition disabled:opacity-50 shadow-lg" disabled>
+                        Generate Try-On
+                    </button>
+                    
+                    <!-- AI Insights (Hidden until generated) -->
+                    <div id="ai-insights-container" class="hidden mt-6 bg-secondary border border-accent/20 rounded-2xl p-5 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-1 h-full bg-accent"></div>
+                        <h3 class="text-xs font-bold uppercase tracking-widest text-primary mb-4 flex items-center">
+                            <svg class="w-4 h-4 mr-2 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            AI Engine Insights
+                        </h3>
+                        <div class="space-y-4">
+                            <div>
+                                <span class="text-[10px] uppercase font-bold text-muted tracking-wider block mb-1">Fit Notes</span>
+                                <p id="insight-fit" class="text-sm text-primary leading-relaxed"></p>
+                            </div>
+                            <div>
+                                <span class="text-[10px] uppercase font-bold text-muted tracking-wider block mb-1">Styling Tip</span>
+                                <p id="insight-styling" class="text-sm text-primary leading-relaxed"></p>
+                            </div>
+                            <div class="flex items-center justify-between border-t border-accent/10 pt-3 mt-3">
+                                <span class="text-[10px] uppercase font-bold text-muted tracking-wider">Confidence Score</span>
+                                <div class="bg-primary text-white text-xs font-bold px-2 py-1 rounded-md"><span id="insight-confidence"></span>/10</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel -->
+            <div id="resultPanel" class="w-full md:w-7/12 bg-secondary relative flex flex-col">
+                <!-- STATE 1: Default placeholder -->
+                <div id="statePlaceholder" class="absolute inset-0 flex flex-col items-center justify-center p-8">
+                    <div class="w-24 h-24 rounded-full bg-white shadow-sm flex items-center justify-center mb-6">
+                        <svg class="w-10 h-10 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    </div>
+                    <p class="text-muted font-medium">Your try-on result will appear here</p>
+                </div>
+
+                <!-- STATE 2: Loading -->
+                <div id="stateLoading" class="hidden absolute inset-0 flex flex-col items-center justify-center p-8 bg-secondary/80 backdrop-blur z-20">
+                    <div class="w-16 h-16 border-4 border-accent/20 border-t-accent rounded-full animate-spin mb-6"></div>
+                    <p id="loadingMessage" class="text-primary font-medium tracking-wide text-lg">Detecting your body pose...</p>
+                </div>
+
+                <!-- STATE 3: Result image -->
+                <div id="stateResult" class="hidden absolute inset-0 flex flex-col">
+                    <img id="generatedImage" class="absolute inset-0 w-full h-full object-cover object-top" src="" alt="Try-on result">
+                </div>
+
+                <!-- Action Buttons overlay (always visible) -->
+                <div class="absolute bottom-6 left-0 right-0 px-8 flex justify-between items-center z-30">
+                    <button onclick="cancelTryOn()" class="bg-white text-primary px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg hover:bg-gray-50 smooth-transition">Cancel</button>
+                    <div class="flex space-x-3">
+                        <button onclick="saveImage()" class="bg-white text-primary px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg hover:bg-gray-50 smooth-transition">Save Image</button>
+                        <button onclick="buyNow()" class="bg-primary text-white px-8 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg hover:bg-gray-800 smooth-transition">Buy Now</button>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script src="js/tryOn.js"></script>
+</body>
+</html>

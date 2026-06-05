@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product - TryNova</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+                tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: '#EBE1D7',
+                        surface: '#FFFFFF',
+                        secondary: '#F5F2EF',
+                        primary: '#2D241E',
+                        muted: '#7A6B61',
+                        accent: '#5C4332',
+                        'accent-hover': '#423023'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-base text-primary font-sans antialiased">
+    
+    <nav class="w-full glass-panel border-b border-accent/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <a href="index.html" class="text-2xl font-bold tracking-tighter text-white">
+                        Try<span class="text-accent">Nova</span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="cart.html" class="relative text-muted hover:text-accent smooth-transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        <span id="cart-badge" class="hidden absolute -top-2 -right-2 bg-accent text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">0</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <!-- Breadcrumb -->
+        <div class="text-sm text-muted mb-8" id="breadcrumb">
+            <a href="index.html" class="hover:text-white">Home</a> > <a href="shop.html" class="hover:text-white">Shop</a> > <span id="bc-name">Loading...</span>
+        </div>
+
+        <div class="flex flex-col md:flex-row gap-12" id="product-container">
+            <!-- Left: Images -->
+            <div class="w-full md:w-1/2">
+                <div class="bg-surface rounded-2xl overflow-hidden mb-4 relative aspect-[4/5]" id="main-image-container">
+                    <div class="absolute inset-0 skeleton" id="main-skeleton"></div>
+                    <img id="main-image" src="" alt="" class="w-full h-full object-cover hidden cursor-zoom-in">
+                </div>
+                <div class="flex gap-4" id="thumbnails">
+                    <!-- populated via js -->
+                </div>
+            </div>
+
+            <!-- Right: Details -->
+            <div class="w-full md:w-1/2 flex flex-col pt-2">
+                <div id="p-category" class="text-sm text-accent font-semibold tracking-wider uppercase mb-2"></div>
+                <h1 id="p-name" class="text-3xl sm:text-4xl font-bold mb-4"></h1>
+                
+                <div class="flex items-center gap-4 mb-6">
+                    <span id="p-price" class="text-2xl font-bold text-white"></span>
+                    <div class="flex items-center text-yellow-500">
+                        <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                        <span id="p-rating" class="ml-1 text-muted text-sm font-medium"></span>
+                    </div>
+                </div>
+
+                <p id="p-desc" class="text-muted mb-8 leading-relaxed"></p>
+
+                <!-- Selectors -->
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold mb-3">Size</h3>
+                    <div class="flex flex-wrap gap-3" id="p-sizes"></div>
+                </div>
+
+                <div class="mb-8">
+                    <h3 class="text-sm font-semibold mb-3">Color</h3>
+                    <div class="flex gap-3" id="p-colors"></div>
+                </div>
+
+                <div class="mb-8 flex items-center gap-4">
+                    <h3 class="text-sm font-semibold">Quantity</h3>
+                    <div class="flex items-center border border-accent/20 rounded-lg bg-surface">
+                        <button id="qty-minus" class="px-4 py-2 text-muted hover:text-white">-</button>
+                        <span id="qty-value" class="px-4 py-2 font-medium">1</span>
+                        <button id="qty-plus" class="px-4 py-2 text-muted hover:text-white">+</button>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                    <button id="add-to-cart" class="flex-1 bg-surface border border-accent/20 hover:bg-gray-800 text-white py-4 rounded-xl font-bold text-lg smooth-transition">
+                        Add to Cart
+                    </button>
+                    <button id="try-on-btn" class="flex-1 glow-primary bg-accent hover:bg-accent-hover text-white py-4 rounded-xl font-bold text-lg smooth-transition">
+                        Try It On ✨
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-4 text-sm text-muted mb-8">
+                    <button id="wishlist-btn" class="flex items-center hover:text-accent smooth-transition">
+                        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                        Save to Wishlist
+                    </button>
+                    <span>|</span>
+                    <span class="flex items-center">
+                        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                        Estimated delivery in 3-5 days
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="mt-24">
+            <h2 class="text-2xl font-bold mb-8">Complete the Look</h2>
+            <div id="rec-grid" class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <!-- Skeletons... -->
+            </div>
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const productId = urlParams.get('id');
+            if (!productId) {
+                document.getElementById('product-container').innerHTML = '<div class="text-red-500 py-10">Product ID missing</div>';
+                return;
+            }
+
+            let currentProduct = null;
+            let selectedSize = null;
+            let selectedColor = null;
+            let quantity = 1;
+
+            try {
+                const res = await api.get(`/products/${productId}`);
+                currentProduct = res.data;
+                renderProduct(currentProduct);
+                fetchRecommendations(currentProduct.category);
+            } catch(e) {
+                document.getElementById('product-container').innerHTML = '<div class="text-red-500 py-10">Product not found</div>';
+            }
+
+            function renderProduct(p) {
+                document.getElementById('bc-name').textContent = p.name;
+                document.getElementById('p-name').textContent = p.name;
+                document.getElementById('p-category').textContent = p.category;
+                document.getElementById('p-price').textContent = `₹${p.price}`;
+                document.getElementById('p-rating').textContent = `${p.rating} (120 reviews)`;
+                document.getElementById('p-desc').textContent = p.description;
+
+                const mainImg = document.getElementById('main-image');
+                mainImg.src = p.images[0];
+                mainImg.onload = () => {
+                    document.getElementById('main-skeleton').classList.add('hidden');
+                    mainImg.classList.remove('hidden');
+                };
+
+                const thumbs = document.getElementById('thumbnails');
+                p.images.forEach((imgSrc, idx) => {
+                    thumbs.innerHTML += `
+                        <button class="w-20 h-24 rounded-lg overflow-hidden border-2 ${idx===0 ? 'border-accent' : 'border-transparent'} hover:border-accent smooth-transition thumbnail-btn">
+                            <img src="${imgSrc}" class="w-full h-full object-cover pointer-events-none">
+                        </button>
+                    `;
+                });
+
+                document.querySelectorAll('.thumbnail-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.thumbnail-btn').forEach(b => b.classList.remove('border-accent'));
+                        btn.classList.add('border-accent');
+                        mainImg.src = btn.querySelector('img').src;
+                    });
+                });
+
+                const sizesDiv = document.getElementById('p-sizes');
+                p.sizes.forEach((s, idx) => {
+                    if(idx === 0) selectedSize = s;
+                    sizesDiv.innerHTML += `
+                        <button class="size-btn px-4 py-2 rounded-lg border ${idx===0 ? 'border-accent text-accent bg-accent/10' : 'border-accent/20 text-muted'} hover:border-accent smooth-transition">${s}</button>
+                    `;
+                });
+
+                document.querySelectorAll('.size-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.size-btn').forEach(b => {
+                            b.classList.remove('border-accent', 'text-accent', 'bg-accent/10');
+                            b.classList.add('border-accent/20', 'text-muted');
+                        });
+                        btn.classList.add('border-accent', 'text-accent', 'bg-accent/10');
+                        btn.classList.remove('border-accent/20', 'text-muted');
+                        selectedSize = btn.textContent;
+                    });
+                });
+
+                const colorsDiv = document.getElementById('p-colors');
+                const colorMap = {
+                    'Black': 'bg-black', 'White': 'bg-white', 'Navy': 'bg-blue-900',
+                    'Olive': 'bg-green-900', 'Maroon': 'bg-red-900', 'Beige': 'bg-[#F5F5DC]',
+                    'Grey': 'bg-gray-500', 'Pink': 'bg-pink-400', 'Mustard': 'bg-yellow-600', 'Teal': 'bg-teal-600'
+                };
+                
+                p.colors.forEach((c, idx) => {
+                    if(idx === 0) selectedColor = c;
+                    const bgClass = colorMap[c] || 'bg-gray-500';
+                    colorsDiv.innerHTML += `
+                        <button title="${c}" class="color-btn w-8 h-8 rounded-full ${bgClass} border border-gray-600 ring-2 ${idx===0 ? 'ring-accent' : 'ring-transparent'} ring-offset-2 ring-offset-dark smooth-transition"></button>
+                    `;
+                });
+
+                document.querySelectorAll('.color-btn').forEach((btn, idx) => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.color-btn').forEach(b => {
+                            b.classList.remove('ring-accent');
+                            b.classList.add('ring-transparent');
+                        });
+                        btn.classList.add('ring-accent');
+                        btn.classList.remove('ring-transparent');
+                        selectedColor = p.colors[idx];
+                    });
+                });
+            }
+
+            async function fetchRecommendations(category) {
+                const grid = document.getElementById('rec-grid');
+                try {
+                    const res = await api.get(`/products/recommendations?category=${category}`);
+                    grid.innerHTML = '';
+                    res.data.forEach(p => {
+                        if (p._id === productId) return;
+                        grid.innerHTML += `
+                            <div class="bg-surface rounded-xl overflow-hidden group">
+                                <a href="product.html?id=${p._id}" class="block h-64 overflow-hidden">
+                                    <img src="${p.images[0]}" class="w-full h-full object-cover group-hover:scale-105 smooth-transition">
+                                </a>
+                                <div class="p-3">
+                                    <h4 class="text-sm font-medium truncate mb-1">${p.name}</h4>
+                                    <div class="text-accent text-sm font-semibold">₹${p.price}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } catch(e) {
+                    grid.innerHTML = '<p>No recommendations found.</p>';
+                }
+            }
+
+            const qtyEl = document.getElementById('qty-value');
+            document.getElementById('qty-plus').addEventListener('click', () => {
+                quantity++;
+                qtyEl.textContent = quantity;
+            });
+            document.getElementById('qty-minus').addEventListener('click', () => {
+                if(quantity > 1) {
+                    quantity--;
+                    qtyEl.textContent = quantity;
+                }
+            });
+
+            document.getElementById('try-on-btn').addEventListener('click', () => {
+                window.location.href = `tryOn.html?productId=${productId}`;
+            });
+
+            document.getElementById('add-to-cart').addEventListener('click', async () => {
+                try {
+                    await api.post('/cart/add', {
+                        productId,
+                        size: selectedSize,
+                        color: selectedColor,
+                        quantity
+                    });
+                    window.showToast('Added to cart', 'success');
+                    updateCartBadge();
+                } catch(e) {
+                    window.showToast(e.message || 'Please login first', 'error');
+                }
+            });
+
+            document.getElementById('wishlist-btn').addEventListener('click', async () => {
+                try {
+                    await api.post('/favorites/add', { productId });
+                    window.showToast('Added to wishlist', 'success');
+                } catch(e) {
+                    window.showToast(e.message || 'Please login first', 'error');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

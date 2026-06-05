@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cart - TryNova</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+                tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: '#EBE1D7',
+                        surface: '#FFFFFF',
+                        secondary: '#F5F2EF',
+                        primary: '#2D241E',
+                        muted: '#7A6B61',
+                        accent: '#5C4332',
+                        'accent-hover': '#423023'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-base text-primary font-sans antialiased">
+    
+    <nav class="w-full glass-panel border-b border-accent/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+            <a href="index.html" class="text-2xl font-bold tracking-tighter text-white">Try<span class="text-accent">Nova</span></a>
+            <a href="shop.html" class="text-sm text-muted hover:text-accent">Continue Shopping</a>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-12 flex flex-col lg:flex-row gap-12">
+        <!-- Left: Items -->
+        <div class="flex-[2]">
+            <h1 class="text-3xl font-bold mb-8">Your Cart</h1>
+            <div id="cart-items" class="space-y-6">
+                <div class="text-muted py-10" id="cart-loading">Loading cart...</div>
+            </div>
+        </div>
+
+        <!-- Right: Summary -->
+        <div class="flex-1">
+            <div class="bg-surface border border-accent/10 rounded-2xl p-6 sticky top-24">
+                <h2 class="text-xl font-bold mb-6 border-b border-accent/10 pb-4">Order Summary</h2>
+                
+                <div class="space-y-4 mb-6">
+                    <div class="flex justify-between text-muted">
+                        <span>Subtotal</span>
+                        <span id="summary-subtotal" class="text-white font-medium">₹0</span>
+                    </div>
+                    <div class="flex justify-between text-muted">
+                        <span>Shipping</span>
+                        <span id="summary-shipping" class="text-white font-medium">Free</span>
+                    </div>
+                    <div class="flex justify-between text-muted">
+                        <span>GST (18%)</span>
+                        <span id="summary-gst" class="text-white font-medium">₹0</span>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between items-center border-t border-accent/10 pt-6 mb-8">
+                    <span class="text-lg font-bold">Total</span>
+                    <span id="summary-total" class="text-2xl font-bold text-accent">₹0</span>
+                </div>
+                
+                <button id="checkout-btn" class="w-full glow-primary bg-accent hover:bg-accent-hover text-white py-4 rounded-xl font-bold text-lg smooth-transition disabled:bg-gray-700 disabled:shadow-none" disabled>
+                    Proceed to Checkout
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('token');
+            if(!token) {
+                document.getElementById('cart-items').innerHTML = '<div class="py-10">Please <a href="signin.html" class="text-accent underline">sign in</a> to view your cart.</div>';
+                return;
+            }
+
+            await loadCart();
+
+            document.getElementById('checkout-btn').addEventListener('click', async () => {
+                try {
+                    await api.post('/orders/create', { shippingAddress: { "mock": "address" } });
+                    window.showToast('Order placed successfully!', 'success');
+                    setTimeout(() => window.location.href = 'profile.html', 1500);
+                } catch(e) {
+                    window.showToast(e.message, 'error');
+                }
+            });
+        });
+
+        async function loadCart() {
+            try {
+                const res = await api.get('/cart');
+                renderCart(res.data.items);
+            } catch(e) {
+                document.getElementById('cart-items').innerHTML = '<div class="text-red-500 py-10">Failed to load cart.</div>';
+            }
+        }
+
+        function renderCart(items) {
+            const container = document.getElementById('cart-items');
+            if(!items || items.length === 0) {
+                container.innerHTML = '<div class="text-muted py-10">Your cart is empty. <a href="shop.html" class="text-accent underline">Explore products</a></div>';
+                updateSummary(0);
+                document.getElementById('checkout-btn').disabled = true;
+                return;
+            }
+
+            document.getElementById('checkout-btn').disabled = false;
+            let subtotal = 0;
+            container.innerHTML = '';
+
+            items.forEach(item => {
+                const p = item.productId;
+                if(!p) return;
+                subtotal += p.price * item.quantity;
+                
+                container.innerHTML += `
+                    <div class="flex gap-6 bg-surface p-4 rounded-xl border border-accent/10 relative">
+                        <a href="product.html?id=${p._id}" class="w-24 h-32 shrink-0 bg-gray-800 rounded-lg overflow-hidden">
+                            <img src="${p.images[0]}" class="w-full h-full object-cover">
+                        </a>
+                        <div class="flex-1 flex flex-col justify-between">
+                            <div>
+                                <h3 class="text-lg font-medium pr-8"><a href="product.html?id=${p._id}">${p.name}</a></h3>
+                                <div class="text-sm text-muted mt-1">Size: ${item.size} | Color: ${item.color}</div>
+                            </div>
+                            <div class="flex items-center justify-between mt-4">
+                                <div class="flex items-center border border-accent/20 rounded-lg bg-dark">
+                                    <button onclick="updateQty('${item._id}', ${item.quantity - 1})" class="px-3 py-1 text-muted hover:text-white">-</button>
+                                    <span class="px-3 py-1 font-medium text-sm">${item.quantity}</span>
+                                    <button onclick="updateQty('${item._id}', ${item.quantity + 1})" class="px-3 py-1 text-muted hover:text-white">+</button>
+                                </div>
+                                <div class="font-bold">₹${p.price * item.quantity}</div>
+                            </div>
+                        </div>
+                        <button onclick="removeItem('${item._id}')" class="absolute top-4 right-4 text-muted hover:text-red-500 smooth-transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                `;
+            });
+
+            updateSummary(subtotal);
+            updateCartBadge();
+        }
+
+        async function updateQty(itemId, newQty) {
+            if(newQty < 1) return;
+            try {
+                const res = await api.put(`/cart/update/${itemId}`, { quantity: newQty });
+                renderCart(res.data.items);
+            } catch(e) { window.showToast('Error updating', 'error'); }
+        }
+
+        async function removeItem(itemId) {
+            try {
+                const res = await api.delete(`/cart/remove/${itemId}`);
+                renderCart(res.data.items);
+            } catch(e) { window.showToast('Error removing', 'error'); }
+        }
+
+        function updateSummary(subtotal) {
+            const gst = Math.round(subtotal * 0.18);
+            const total = subtotal + gst;
+            
+            document.getElementById('summary-subtotal').textContent = `₹${subtotal}`;
+            document.getElementById('summary-gst').textContent = `₹${gst}`;
+            document.getElementById('summary-total').textContent = `₹${total}`;
+        }
+    </script>
+</body>
+</html>

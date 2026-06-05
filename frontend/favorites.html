@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wishlist - TryNova</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+                tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: '#EBE1D7',
+                        surface: '#FFFFFF',
+                        secondary: '#F5F2EF',
+                        primary: '#2D241E',
+                        muted: '#7A6B61',
+                        accent: '#5C4332',
+                        'accent-hover': '#423023'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-base text-primary font-sans antialiased">
+    
+    <nav class="w-full glass-panel border-b border-accent/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+            <a href="index.html" class="text-2xl font-bold tracking-tighter text-white">Try<span class="text-accent">Nova</span></a>
+            <div class="flex items-center space-x-4">
+                <a href="shop.html" class="text-sm text-muted hover:text-accent">Continue Shopping</a>
+                <a href="profile.html" class="text-muted hover:text-accent">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-12">
+        <h1 class="text-3xl font-bold mb-8">Your Wishlist</h1>
+        
+        <div id="favorites-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+            <div class="col-span-full text-muted py-10" id="fav-loading">Loading wishlist...</div>
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('token');
+            if(!token) {
+                document.getElementById('favorites-grid').innerHTML = '<div class="col-span-full py-10">Please <a href="signin.html" class="text-accent underline">sign in</a> to view your wishlist.</div>';
+                return;
+            }
+            await loadFavorites();
+        });
+
+        async function loadFavorites() {
+            try {
+                const res = await api.get('/favorites');
+                renderFavorites(res.data);
+            } catch(e) {
+                document.getElementById('favorites-grid').innerHTML = '<div class="col-span-full text-red-500 py-10">Failed to load wishlist.</div>';
+            }
+        }
+
+        function renderFavorites(items) {
+            const grid = document.getElementById('favorites-grid');
+            if(!items || items.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full text-center py-20 flex flex-col items-center">
+                        <svg class="w-24 h-24 text-gray-800 mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                        <h3 class="text-xl font-medium mb-4">Your wishlist is empty</h3>
+                        <a href="shop.html" class="bg-surface border border-accent/20 hover:border-accent text-white px-8 py-3 rounded-xl smooth-transition">Explore Shop</a>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = '';
+            // For now, favorites is just array of productIds due to our basic implementation.
+            // Wait, populate works in controller! So it's an array of { _id, productId: { ... } }
+            
+            items.forEach(item => {
+                const p = item.productId;
+                if(!p) return;
+                
+                grid.innerHTML += `
+                    <div class="bg-surface rounded-xl overflow-hidden group relative flex flex-col">
+                        <a href="product.html?id=${p._id}" class="block h-64 overflow-hidden relative">
+                            <img src="${p.images[0]}" class="w-full h-full object-cover group-hover:scale-105 smooth-transition">
+                        </a>
+                        <button onclick="removeFav('${p._id}')" class="absolute top-4 right-4 bg-dark/50 p-2 rounded-full text-white hover:text-red-500 smooth-transition backdrop-blur-md">
+                            <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                        </button>
+                        <div class="p-4 flex-1 flex flex-col">
+                            <h4 class="text-sm font-medium truncate mb-1">${p.name}</h4>
+                            <div class="text-muted font-semibold mb-4">₹${p.price}</div>
+                            <div class="mt-auto flex gap-2">
+                                <button onclick="moveToCart('${p._id}')" class="flex-1 bg-accent hover:bg-accent-hover text-white text-sm py-2 rounded-lg font-medium smooth-transition text-center">Move to Cart</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        window.removeFav = async (productId) => {
+            try {
+                const res = await api.delete(`/favorites/remove/${productId}`);
+                renderFavorites(res.data);
+                window.showToast('Removed from wishlist', 'info');
+            } catch(e) { window.showToast('Error removing', 'error'); }
+        };
+
+        window.moveToCart = async (productId) => {
+            try {
+                await api.post('/cart/add', { productId, size: 'M', color: 'Default', quantity: 1 });
+                await window.removeFav(productId);
+                window.showToast('Moved to cart', 'success');
+            } catch(e) { window.showToast('Error moving to cart', 'error'); }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Stylist - TryNova</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+                tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: '#EBE1D7',
+                        surface: '#FFFFFF',
+                        secondary: '#F5F2EF',
+                        primary: '#2D241E',
+                        muted: '#7A6B61',
+                        accent: '#5C4332',
+                        'accent-hover': '#423023'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-base text-primary font-sans antialiased h-screen flex flex-col overflow-hidden">
+    
+    <!-- Navbar -->
+    <nav class="w-full glass-panel border-b border-accent/10 shrink-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <a href="index.html" class="text-2xl font-bold tracking-tighter text-white">
+                        Try<span class="text-accent">Nova</span>
+                    </a>
+                </div>
+                <div class="text-muted font-medium">AI Stylist</div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Chat Container -->
+    <main class="flex-1 overflow-y-auto p-4 sm:p-8 scroll-smooth" id="chat-container">
+        <div class="max-w-3xl mx-auto space-y-6 pb-24" id="chat-messages">
+            
+            <!-- Welcome Message -->
+            <div class="flex items-start gap-4 animate-[slideIn_0.3s_ease-out]">
+                <div class="w-10 h-10 rounded-full bg-accent flex items-center justify-center shrink-0">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                </div>
+                <div class="bg-surface border border-accent/10 rounded-2xl rounded-tl-none p-4 max-w-[80%]">
+                    <p class="mb-2 text-gray-200">Hi! I'm your AI Fashion Stylist. I can help you put together the perfect outfit.</p>
+                    <p class="text-gray-200">Let's start. <strong>What's the occasion?</strong></p>
+                    <div class="mt-4 flex flex-wrap gap-2" id="q1-options">
+                        <button class="chip px-4 py-2 bg-dark border border-accent/20 hover:border-accent rounded-full text-sm smooth-transition">Casual</button>
+                        <button class="chip px-4 py-2 bg-dark border border-accent/20 hover:border-accent rounded-full text-sm smooth-transition">Party</button>
+                        <button class="chip px-4 py-2 bg-dark border border-accent/20 hover:border-accent rounded-full text-sm smooth-transition">Work</button>
+                        <button class="chip px-4 py-2 bg-dark border border-accent/20 hover:border-accent rounded-full text-sm smooth-transition">Wedding</button>
+                        <button class="chip px-4 py-2 bg-dark border border-accent/20 hover:border-accent rounded-full text-sm smooth-transition">Sport</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatMessages = document.getElementById('chat-messages');
+            const chatContainer = document.getElementById('chat-container');
+            
+            let answers = { occasion: '', vibe: '', colors: [], gender: '' };
+
+            function scrollToBottom() {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            function addUserMessage(text) {
+                const msg = document.createElement('div');
+                msg.className = "flex items-start gap-4 justify-end animate-[slideIn_0.3s_ease-out]";
+                msg.innerHTML = `
+                    <div class="bg-accent rounded-2xl rounded-tr-none p-4 max-w-[80%] text-white">
+                        <p>${text}</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center shrink-0">
+                        <svg class="w-6 h-6 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                    </div>
+                `;
+                chatMessages.appendChild(msg);
+                scrollToBottom();
+            }
+
+            function addBotMessage(contentHTML) {
+                const msg = document.createElement('div');
+                msg.className = "flex items-start gap-4 animate-[slideIn_0.3s_ease-out] mt-4";
+                msg.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-accent flex items-center justify-center shrink-0">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    </div>
+                    <div class="bg-surface border border-accent/10 rounded-2xl rounded-tl-none p-4 max-w-[80%]">
+                        ${contentHTML}
+                    </div>
+                `;
+                chatMessages.appendChild(msg);
+                scrollToBottom();
+            }
+
+            function handleQ1() {
+                document.querySelectorAll('#q1-options .chip').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        answers.occasion = btn.textContent;
+                        addUserMessage(answers.occasion);
+                        document.getElementById('q1-options').style.display = 'none';
+                        setTimeout(askQ2, 500);
+                    });
+                });
+            }
+
+            function askQ2() {
+                addBotMessage(`
+                    <p class="mb-2 text-gray-200">Got it! <strong>What's your vibe?</strong></p>
+                    <div class="mt-4 flex flex-wrap gap-2" id="q2-options">
+                        <button class="chip px-4 py-2 bg-dark border border-accent/20 hover:border-accent rounded-full text-sm smooth-transition">Streetwear</button>
+                        <button class="chip px-4 py-2 bg-dark border border-accent/20 hover:border-accent rounded-full text-sm smooth-transition">Minimal</button>
+                        <button class="chip px-4 py-2 bg-dark border border-accent/20 hover:border-accent rounded-full text-sm smooth-transition">Elegant</button>
+                        <button class="chip px-4 py-2 bg-dark border border-accent/20 hover:border-accent rounded-full text-sm smooth-transition">Sporty</button>
+                        <button class="chip px-4 py-2 bg-dark border border-accent/20 hover:border-accent rounded-full text-sm smooth-transition">Boho</button>
+                    </div>
+                `);
+                
+                document.querySelectorAll('#q2-options .chip').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        answers.vibe = btn.textContent;
+                        addUserMessage(answers.vibe);
+                        document.getElementById('q2-options').style.display = 'none';
+                        setTimeout(askQ3, 500);
+                    });
+                });
+            }
+
+            function askQ3() {
+                addBotMessage(`
+                    <p class="mb-2 text-gray-200">Nice. <strong>Pick your color palette.</strong></p>
+                    <div class="mt-4 flex flex-wrap gap-2" id="q3-options">
+                        <button class="chip w-8 h-8 rounded-full bg-black border border-gray-600 ring-2 ring-transparent focus:ring-accent"></button>
+                        <button class="chip w-8 h-8 rounded-full bg-white border border-gray-300 ring-2 ring-transparent focus:ring-accent"></button>
+                        <button class="chip w-8 h-8 rounded-full bg-blue-900 ring-2 ring-transparent focus:ring-accent"></button>
+                        <button class="chip w-8 h-8 rounded-full bg-green-800 ring-2 ring-transparent focus:ring-accent"></button>
+                        <button class="chip w-8 h-8 rounded-full bg-red-800 ring-2 ring-transparent focus:ring-accent"></button>
+                        <button class="chip px-4 py-1.5 bg-dark border border-accent/20 hover:border-accent rounded-full text-sm ml-2">Any Color</button>
+                    </div>
+                `);
+                
+                document.querySelectorAll('#q3-options .chip').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        answers.colors = [btn.textContent || 'Selected Color'];
+                        addUserMessage(btn.textContent || 'Selected Color');
+                        document.getElementById('q3-options').style.display = 'none';
+                        setTimeout(askQ4, 500);
+                    });
+                });
+            }
+
+            function askQ4() {
+                addBotMessage(`
+                    <p class="mb-2 text-gray-200">Last question: <strong>Your gender preference?</strong></p>
+                    <div class="mt-4 flex flex-wrap gap-2" id="q4-options">
+                        <button class="chip px-4 py-2 bg-dark border border-accent/20 hover:border-accent rounded-full text-sm smooth-transition">Men</button>
+                        <button class="chip px-4 py-2 bg-dark border border-accent/20 hover:border-accent rounded-full text-sm smooth-transition">Women</button>
+                        <button class="chip px-4 py-2 bg-dark border border-accent/20 hover:border-accent rounded-full text-sm smooth-transition">Unisex</button>
+                    </div>
+                `);
+                
+                document.querySelectorAll('#q4-options .chip').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        answers.gender = btn.textContent;
+                        addUserMessage(answers.gender);
+                        document.getElementById('q4-options').style.display = 'none';
+                        setTimeout(fetchSuggestions, 500);
+                    });
+                });
+            }
+
+            async function fetchSuggestions() {
+                addBotMessage(`<p class="text-accent flex items-center"><svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> ✨ Styling your look...</p>`);
+                
+                try {
+                    const res = await api.post('/stylist', answers);
+                    
+                    // Remove loading message
+                    chatMessages.removeChild(chatMessages.lastChild);
+                    
+                    let cardsHtml = res.data.map(product => `
+                        <div class="bg-dark border border-accent/10 rounded-lg overflow-hidden min-w-[200px] snap-start">
+                            <img src="${product.images[0]}" class="w-full h-48 object-cover">
+                            <div class="p-3">
+                                <h4 class="text-sm font-medium truncate text-white mb-1">${product.name}</h4>
+                                <div class="text-xs text-muted mb-2">₹${product.price}</div>
+                                <a href="tryOn.html?productId=${product._id}" class="block text-center text-xs bg-accent hover:bg-accent-hover text-white py-1.5 rounded transition-colors">Try It On</a>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    addBotMessage(`
+                        <p class="mb-4 text-gray-200">Here are some curated suggestions based on your vibe!</p>
+                        <div class="flex overflow-x-auto space-x-4 pb-2 snap-x hide-scrollbar">
+                            ${cardsHtml}
+                        </div>
+                    `);
+                } catch (e) {
+                    chatMessages.removeChild(chatMessages.lastChild);
+                    addBotMessage(`<p class="text-red-400">Oops, I hit a snag while looking for styles. Please try again.</p>`);
+                }
+            }
+
+            handleQ1();
+        });
+    </script>
+</body>
+</html>

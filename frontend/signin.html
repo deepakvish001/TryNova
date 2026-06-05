@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - TryNova</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+                tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: '#EBE1D7',
+                        surface: '#FFFFFF',
+                        secondary: '#F5F2EF',
+                        primary: '#2D241E',
+                        muted: '#7A6B61',
+                        accent: '#5C4332',
+                        'accent-hover': '#423023'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-base text-primary font-sans antialiased h-screen flex flex-col sm:flex-row overflow-hidden">
+    
+    <!-- Left: Branding / Image -->
+    <div class="hidden sm:flex w-1/2 bg-surface relative items-center justify-center overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-t from-dark to-transparent z-10"></div>
+        <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1000&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover opacity-50" alt="Fashion">
+        <div class="relative z-20 text-center px-8">
+            <h1 class="text-5xl font-bold tracking-tighter mb-4">Try<span class="text-accent">Nova</span></h1>
+            <p class="text-xl text-muted">The future of fashion is here. AI Virtual Try-On.</p>
+        </div>
+    </div>
+
+    <!-- Right: Auth Form -->
+    <div class="w-full sm:w-1/2 flex items-center justify-center p-8 overflow-y-auto">
+        <div class="w-full max-w-md bg-surface p-8 rounded-2xl border border-accent/10">
+            
+            <div class="flex justify-center mb-8 sm:hidden">
+                <a href="index.html" class="text-3xl font-bold tracking-tighter">Try<span class="text-accent">Nova</span></a>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex gap-4 mb-8 border-b border-accent/10 pb-4">
+                <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 text-center font-semibold text-lg text-accent border-b-2 border-accent pb-2 -mb-4.5 smooth-transition">Log In</button>
+                <button id="tab-signup" onclick="switchAuthTab('signup')" class="flex-1 text-center font-semibold text-lg text-muted pb-2 -mb-4.5 smooth-transition">Sign Up</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-muted mb-2">Email Address</label>
+                    <input type="email" id="login-email" required class="w-full bg-dark border border-accent/20 text-white rounded-xl px-4 py-3 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent smooth-transition">
+                </div>
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <label class="block text-sm font-medium text-muted">Password</label>
+                        <a href="#" class="text-sm text-accent hover:underline">Forgot password?</a>
+                    </div>
+                    <input type="password" id="login-password" required class="w-full bg-dark border border-accent/20 text-white rounded-xl px-4 py-3 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent smooth-transition">
+                </div>
+                <button type="submit" class="w-full glow-primary bg-accent hover:bg-accent-hover text-white py-3.5 rounded-xl font-bold text-lg smooth-transition mt-4">
+                    Sign In
+                </button>
+            </form>
+
+            <!-- Signup Form -->
+            <form id="signup-form" class="space-y-5 hidden">
+                <div>
+                    <label class="block text-sm font-medium text-muted mb-2">Full Name</label>
+                    <input type="text" id="signup-name" required class="w-full bg-dark border border-accent/20 text-white rounded-xl px-4 py-3 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent smooth-transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-muted mb-2">Email Address</label>
+                    <input type="email" id="signup-email" required class="w-full bg-dark border border-accent/20 text-white rounded-xl px-4 py-3 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent smooth-transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-muted mb-2">Password</label>
+                    <input type="password" id="signup-password" required class="w-full bg-dark border border-accent/20 text-white rounded-xl px-4 py-3 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent smooth-transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-muted mb-2">Confirm Password</label>
+                    <input type="password" id="signup-confirm" required class="w-full bg-dark border border-accent/20 text-white rounded-xl px-4 py-3 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent smooth-transition">
+                </div>
+                <button type="submit" class="w-full glow-primary bg-accent hover:bg-accent-hover text-white py-3.5 rounded-xl font-bold text-lg smooth-transition mt-4">
+                    Create Account
+                </button>
+            </form>
+
+            <div class="mt-8 text-center border-t border-accent/10 pt-6">
+                <p class="text-muted text-sm mb-4">Or continue without an account</p>
+                <a href="index.html" class="block w-full bg-dark border border-accent/20 hover:border-gray-500 text-white py-3 rounded-xl font-medium smooth-transition">
+                    Continue as Guest
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        function switchAuthTab(tab) {
+            const loginForm = document.getElementById('login-form');
+            const signupForm = document.getElementById('signup-form');
+            const tabLogin = document.getElementById('tab-login');
+            const tabSignup = document.getElementById('tab-signup');
+
+            if(tab === 'login') {
+                loginForm.classList.remove('hidden');
+                signupForm.classList.add('hidden');
+                
+                tabLogin.classList.add('text-accent', 'border-accent');
+                tabLogin.classList.remove('text-muted', 'border-transparent');
+                
+                tabSignup.classList.add('text-muted', 'border-transparent');
+                tabSignup.classList.remove('text-accent', 'border-accent');
+            } else {
+                signupForm.classList.remove('hidden');
+                loginForm.classList.add('hidden');
+                
+                tabSignup.classList.add('text-accent', 'border-accent');
+                tabSignup.classList.remove('text-muted', 'border-transparent');
+                
+                tabLogin.classList.add('text-muted', 'border-transparent');
+                tabLogin.classList.remove('text-accent', 'border-accent');
+            }
+        }
+    </script>
+</body>
+</html>

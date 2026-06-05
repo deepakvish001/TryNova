@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop - TryNova</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+                tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: '#EBE1D7',
+                        surface: '#FFFFFF',
+                        secondary: '#F5F2EF',
+                        primary: '#2D241E',
+                        muted: '#7A6B61',
+                        accent: '#5C4332',
+                        'accent-hover': '#423023'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-base text-primary font-sans antialiased">
+    
+    <!-- Navbar -->
+    <nav class="w-full z-50 glass-panel border-b border-accent/10 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <a href="index.html" class="text-2xl font-bold tracking-tighter text-white">
+                        Try<span class="text-accent">Nova</span>
+                    </a>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-8">
+                        <a href="index.html" class="text-muted hover:text-accent smooth-transition px-3 py-2 rounded-md text-sm font-medium">Home</a>
+                        <a href="shop.html" class="text-white hover:text-accent smooth-transition px-3 py-2 rounded-md text-sm font-medium border-b-2 border-accent">Shop</a>
+                        <a href="tryOn.html" class="text-muted hover:text-accent smooth-transition px-3 py-2 rounded-md text-sm font-medium">AI Try-On</a>
+                        <a href="stylist.html" class="text-muted hover:text-accent smooth-transition px-3 py-2 rounded-md text-sm font-medium">AI Stylist</a>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="cart.html" class="relative text-muted hover:text-accent smooth-transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        <span id="cart-badge" class="hidden absolute -top-2 -right-2 bg-accent text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">0</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 mt-16">
+        <!-- Hero section for shop -->
+        <div class="flex flex-col lg:flex-row items-center py-16 gap-12">
+            <div class="flex-1 text-center lg:text-left">
+                <h1 class="text-6xl md:text-[6rem] font-serif font-bold text-primary tracking-tight mb-4 uppercase leading-[0.9]">Dress Up<br>Your Look</h1>
+                <p class="text-muted text-lg max-w-sm mx-auto lg:mx-0 mt-6 mb-8">TryNova is a design force driven by a vision for sustainability and innovation, also stylish and kind to the environment.</p>
+                <button class="bg-primary text-white px-8 py-3 rounded-full text-sm tracking-wider uppercase font-semibold">Shop Now</button>
+            </div>
+            <div class="flex-1 w-full flex justify-center">
+                <!-- Using one of the generated model images -->
+                <div class="w-full max-w-sm aspect-square bg-secondary rounded-full overflow-hidden">
+                    <img src="images/hero_model.png" class="w-full h-full object-cover object-top" alt="Style">
+                </div>
+            </div>
+        </div>
+
+        <!-- Categories Section -->
+        <div class="mb-20">
+            <h2 class="text-2xl font-bold uppercase tracking-wide mb-8">Categories</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="text-center">
+                    <div class="text-sm font-semibold uppercase mb-4 tracking-widest">Men</div>
+                    <img src="images/categories/shirt.png" class="w-full h-80 object-cover object-top bg-secondary">
+                </div>
+                <div class="text-center">
+                    <div class="text-sm font-semibold uppercase mb-4 tracking-widest">Women</div>
+                    <img src="images/categories/dress.png" class="w-full h-80 object-cover object-top bg-secondary">
+                </div>
+                <div class="text-center">
+                    <div class="text-sm font-semibold uppercase mb-4 tracking-widest">Kids</div>
+                    <img src="images/categories/tshirt.png" class="w-full h-80 object-cover object-top bg-secondary">
+                </div>
+                <div class="text-center">
+                    <div class="text-sm font-semibold uppercase mb-4 tracking-widest">Accessories</div>
+                    <img src="images/categories/jacket.png" class="w-full h-80 object-cover object-top bg-secondary">
+                </div>
+            </div>
+        </div>
+
+        <h2 class="text-2xl font-bold uppercase tracking-wide mb-8 border-t border-accent/10 pt-10">Today's Deal</h2>
+        
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Sidebar Filters -->
+            <aside class="w-full lg:w-64 shrink-0 space-y-8">
+                <!-- Category -->
+                <div>
+                    <h3 class="font-semibold text-lg border-b border-accent/10 pb-2 mb-4">Category</h3>
+                    <div class="space-y-2 flex flex-col" id="filter-category">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="category" value="All" checked class="form-radio text-accent bg-dark border-gray-600 focus:ring-accent">
+                            <span class="ml-2 text-muted">All Categories</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="category" value="T-Shirts" class="form-radio text-accent bg-dark border-gray-600 focus:ring-accent">
+                            <span class="ml-2 text-muted">T-Shirts</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="category" value="Shirts" class="form-radio text-accent bg-dark border-gray-600 focus:ring-accent">
+                            <span class="ml-2 text-muted">Shirts</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="category" value="Hoodies" class="form-radio text-accent bg-dark border-gray-600 focus:ring-accent">
+                            <span class="ml-2 text-muted">Hoodies</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="category" value="Jackets" class="form-radio text-accent bg-dark border-gray-600 focus:ring-accent">
+                            <span class="ml-2 text-muted">Jackets</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="category" value="Jeans" class="form-radio text-accent bg-dark border-gray-600 focus:ring-accent">
+                            <span class="ml-2 text-muted">Jeans</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="category" value="Dresses" class="form-radio text-accent bg-dark border-gray-600 focus:ring-accent">
+                            <span class="ml-2 text-muted">Dresses</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Gender -->
+                <div>
+                    <h3 class="font-semibold text-lg border-b border-accent/10 pb-2 mb-4">Gender</h3>
+                    <div class="space-y-2 flex flex-col" id="filter-gender">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="gender" value="All" checked class="form-radio text-accent bg-dark border-gray-600 focus:ring-accent">
+                            <span class="ml-2 text-muted">All</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="gender" value="Men" class="form-radio text-accent bg-dark border-gray-600 focus:ring-accent">
+                            <span class="ml-2 text-muted">Men</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="gender" value="Women" class="form-radio text-accent bg-dark border-gray-600 focus:ring-accent">
+                            <span class="ml-2 text-muted">Women</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="gender" value="Unisex" class="form-radio text-accent bg-dark border-gray-600 focus:ring-accent">
+                            <span class="ml-2 text-muted">Unisex</span>
+                        </label>
+                    </div>
+                </div>
+
+                <button id="apply-filters" class="w-full bg-surface border border-accent/20 hover:border-accent text-white py-2 rounded-lg smooth-transition">Apply Filters</button>
+            </aside>
+
+            <!-- Main Content -->
+            <div class="flex-1">
+                <!-- Sort & Controls -->
+                <div class="flex justify-between items-center mb-6">
+                    <div class="text-muted text-sm" id="product-count">Loading products...</div>
+                    <select id="sort-dropdown" class="bg-surface border border-accent/20 text-white text-sm rounded-lg focus:ring-accent focus:border-accent block p-2">
+                        <option value="Newest">Newest</option>
+                        <option value="Price Low-High">Price Low-High</option>
+                        <option value="Price High-Low">Price High-Low</option>
+                        <option value="Trending">Trending</option>
+                    </select>
+                </div>
+
+                <!-- Product Grid -->
+                <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    <!-- Skeletons generated via JS -->
+                </div>
+                
+                <!-- Pagination -->
+                <div class="flex justify-center mt-12 gap-2" id="pagination-controls">
+                    <!-- generated via js -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/shop.js"></script>
+</body>
+</html>
