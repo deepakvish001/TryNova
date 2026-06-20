@@ -72,28 +72,94 @@
     }
 
     /**
-     * Trim near-white background from a garment PNG and feather edges.
-     * Returns a canvas with alpha channel applied.
+     * Trim background from a garment image and feather edges.
+     *
+     * Strategy:
+     *  1. Sample the four corners to estimate the dominant background colour.
+     *  2. Mark any pixel within a tolerance of that colour as background.
+     *  3. Flood-fill from the borders so we only strip *contiguous* background
+     *     (interior pixels with the same colour - e.g. a white logo - survive).
+     *  4. Feather the alpha mask so the overlay blends.
      */
     function _prepGarment(img) {
+        const W = img.naturalWidth;
+        const H = img.naturalHeight;
         const c = document.createElement('canvas');
-        c.width = img.naturalWidth;
-        c.height = img.naturalHeight;
+        c.width = W; c.height = H;
         const ctx = c.getContext('2d');
         ctx.drawImage(img, 0, 0);
-        const data = ctx.getImageData(0, 0, c.width, c.height);
+        const data = ctx.getImageData(0, 0, W, H);
         const px = data.data;
-        for (let i = 0; i < px.length; i += 4) {
-            const r = px[i], g = px[i + 1], b = px[i + 2];
-            // Strip near-white background.
-            if (r > 230 && g > 230 && b > 230) {
-                px[i + 3] = 0;
-            } else if (r > 210 && g > 210 && b > 210) {
-                px[i + 3] = Math.floor(px[i + 3] * 0.5);
+
+        const sampleAt = (x, y) => {
+            const i = (y * W + x) * 4;
+            return [px[i], px[i + 1], px[i + 2]];
+        };
+        const samples = [
+            sampleAt(0, 0), sampleAt(W - 1, 0),
+            sampleAt(0, H - 1), sampleAt(W - 1, H - 1),
+            sampleAt(W >> 1, 0), sampleAt(W >> 1, H - 1)
+        ];
+        // Background candidate = mean of border samples.
+        let bgR = 0, bgG = 0, bgB = 0;
+        for (const s of samples) { bgR += s[0]; bgG += s[1]; bgB += s[2]; }
+        bgR /= samples.length; bgG /= samples.length; bgB /= samples.length;
+
+        // If the corners disagree wildly, fall back to "strip near-white" mode.
+        const variance = samples.reduce((acc, s) =>
+            acc + Math.abs(s[0] - bgR) + Math.abs(s[1] - bgG) + Math.abs(s[2] - bgB), 0);
+        const noisyBackground = variance / samples.length > 60;
+        const tolerance = noisyBackground ? 35 : 55;
+
+        // Build initial background mask.
+        const mask = new Uint8Array(W * H); // 0 = unknown, 1 = bg, 2 = fg
+        for (let y = 0; y < H; y++) {
+            for (let x = 0; x < W; x++) {
+                const i = (y * W + x) * 4;
+                const dr = Math.abs(px[i] - bgR);
+                const dg = Math.abs(px[i + 1] - bgG);
+                const db = Math.abs(px[i + 2] - bgB);
+                if (dr + dg + db < tolerance * 3) mask[y * W + x] = 1;
             }
         }
+
+        // Flood-fill from borders so only contiguous border-touching bg is removed.
+        const visited = new Uint8Array(W * H);
+        const stack = [];
+        const push = (x, y) => {
+            if (x < 0 || y < 0 || x >= W || y >= H) return;
+            const idx = y * W + x;
+            if (visited[idx] || mask[idx] !== 1) return;
+            visited[idx] = 1;
+            stack.push(idx);
+        };
+        for (let x = 0; x < W; x++) { push(x, 0); push(x, H - 1); }
+        for (let y = 0; y < H; y++) { push(0, y); push(W - 1, y); }
+        while (stack.length) {
+            const idx = stack.pop();
+            const x = idx % W;
+            const y = (idx / W) | 0;
+            push(x + 1, y); push(x - 1, y);
+            push(x, y + 1); push(x, y - 1);
+        }
+
+        // Apply alpha: contiguous bg => 0; interior bg-like pixels keep alpha.
+        for (let i = 0, p = 0; i < px.length; i += 4, p++) {
+            if (visited[p]) px[i + 3] = 0;
+        }
+
         ctx.putImageData(data, 0, 0);
-        return c;
+
+        // Feather edges with a small blur for smoother compositing.
+        const out = document.createElement('canvas');
+        out.width = W; out.height = H;
+        const octx = out.getContext('2d');
+        octx.filter = 'blur(1.2px)';
+        octx.drawImage(c, 0, 0);
+        octx.filter = 'none';
+        octx.globalCompositeOperation = 'source-atop';
+        octx.drawImage(c, 0, 0);
+        return out;
     }
 
     /**
