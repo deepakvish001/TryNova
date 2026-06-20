@@ -8,8 +8,29 @@ const API_BASE = (() => {
     return `http://${host}:5000/api`;
 })();
 
+// True when we've decided the live backend isn't reachable and we should
+// route every subsequent request straight to the demo handler.
+let _demoOnly = false;
+
+function _shouldUseDemo() {
+    return _demoOnly || (window.TryNovaDemo && window.TryNovaDemo.isEnabled());
+}
+
+async function _demoCall(method, endpoint, body) {
+    if (!window.TryNovaDemo) throw new Error('Demo mode not loaded');
+    window.TryNovaDemo.enable();
+    return window.TryNovaDemo.handle(method, endpoint, body);
+}
+
 const api = {
     async request(endpoint, options = {}) {
+        const method = options.method || 'GET';
+        const body = options.body ? JSON.parse(options.body) : undefined;
+
+        if (_shouldUseDemo()) {
+            return _demoCall(method, endpoint, body);
+        }
+
         const token = localStorage.getItem('token');
         const headers = {
             'Content-Type': 'application/json',
@@ -17,20 +38,29 @@ const api = {
             ...options.headers
         };
 
-        const config = {
-            ...options,
-            headers
-        };
+        const config = { ...options, headers };
+        const controller = new AbortController();
+        config.signal = controller.signal;
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
 
         try {
             const response = await fetch(`${API_BASE}${endpoint}`, config);
+            clearTimeout(timeoutId);
             const data = await response.json();
-            
             if (!response.ok) {
                 throw new Error(data.message || 'API request failed');
             }
             return data;
         } catch (error) {
+            clearTimeout(timeoutId);
+            // Network errors / aborts -> flip to demo mode permanently for this session.
+            const isNetwork = error.name === 'AbortError'
+                || error.name === 'TypeError'
+                || /Failed to fetch|NetworkError/i.test(error.message || '');
+            if (isNetwork && window.TryNovaDemo) {
+                _demoOnly = true;
+                return _demoCall(method, endpoint, body);
+            }
             console.error('API Error:', error);
             throw error;
         }
