@@ -1,8 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "cleanUrls": true,
-  "rewrites": [
-    { "source": "/", "destination": "/frontend/index.html" },
-    { "source": "/((?!frontend/|api/).*)", "destination": "/frontend/$1" }
-  ]
+  "buildCommand": "mkdir -p public && cp -r frontend/* public/",
+  "outputDirectory": "public",
+  "framework": null,
+  "cleanUrls": true
 }
