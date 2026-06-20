@@ -8,8 +8,61 @@ const API_BASE = (() => {
     return `http://${host}:5000/api`;
 })();
 
+// If we're served over HTTPS, an http:// API call would be blocked as Mixed
+// Content before the fetch even fires — there's no point trying. Likewise
+// for non-localhost hosts where we know no backend is running. In both
+// cases flip straight to demo mode at startup.
+const _isHttps = window.location.protocol === 'https:';
+const _isApiHttp = API_BASE.startsWith('http://');
+const _isLocalhost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/.test(window.location.hostname);
+let _demoOnlyAtBoot = (_isHttps && _isApiHttp) || (!_isLocalhost && _isApiHttp);
+
+// True when we've decided the live backend isn't reachable and we should
+// route every subsequent request straight to the demo handler.
+let _demoOnly = _demoOnlyAtBoot;
+let _demoLoadingPromise = null;
+
+function _shouldUseDemo() {
+    return _demoOnly || (window.TryNovaDemo && window.TryNovaDemo.isEnabled());
+}
+
+function _loadDemoScript() {
+    if (window.TryNovaDemo) return Promise.resolve();
+    if (_demoLoadingPromise) return _demoLoadingPromise;
+    _demoLoadingPromise = new Promise((resolve, reject) => {
+        if (window.TryNovaDemo) return resolve();
+        const existing = document.querySelector('script[data-trynova-demo]');
+        if (existing) {
+            existing.addEventListener('load', resolve);
+            existing.addEventListener('error', reject);
+            return;
+        }
+        const s = document.createElement('script');
+        s.src = 'js/demoMode.js';
+        s.dataset.trynovaDemo = '1';
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Failed to load demoMode.js'));
+        document.head.appendChild(s);
+    });
+    return _demoLoadingPromise;
+}
+
+async function _demoCall(method, endpoint, body) {
+    await _loadDemoScript();
+    if (!window.TryNovaDemo) throw new Error('Demo mode not loaded');
+    window.TryNovaDemo.enable();
+    return window.TryNovaDemo.handle(method, endpoint, body);
+}
+
 const api = {
     async request(endpoint, options = {}) {
+        const method = options.method || 'GET';
+        const body = options.body ? JSON.parse(options.body) : undefined;
+
+        if (_shouldUseDemo()) {
+            return _demoCall(method, endpoint, body);
+        }
+
         const token = localStorage.getItem('token');
         const headers = {
             'Content-Type': 'application/json',
@@ -17,20 +70,37 @@ const api = {
             ...options.headers
         };
 
-        const config = {
-            ...options,
-            headers
-        };
+        const config = { ...options, headers };
+        const controller = new AbortController();
+        config.signal = controller.signal;
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
 
         try {
             const response = await fetch(`${API_BASE}${endpoint}`, config);
+            clearTimeout(timeoutId);
             const data = await response.json();
-            
             if (!response.ok) {
                 throw new Error(data.message || 'API request failed');
             }
             return data;
         } catch (error) {
+            clearTimeout(timeoutId);
+            // Network errors / aborts / mixed-content -> flip to demo mode
+            // permanently for this session. Treat any fetch failure that
+            // isn't a real HTTP response as a network issue so the demo
+            // catalogue keeps the UI alive.
+            const isNetwork = error.name === 'AbortError'
+                || error.name === 'TypeError'
+                || /Failed to fetch|NetworkError|Mixed Content/i.test(error.message || '');
+            if (isNetwork) {
+                _demoOnly = true;
+                try {
+                    return await _demoCall(method, endpoint, body);
+                } catch (demoErr) {
+                    console.error('Demo fallback failed:', demoErr);
+                    throw demoErr;
+                }
+            }
             console.error('API Error:', error);
             throw error;
         }
