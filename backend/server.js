@@ -8,6 +8,13 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// vercel.json routes this API through Vercel's proxy, so req.ip is the
+// proxy's address unless we opt in to X-Forwarded-For. Without this the
+// auth rate limiters would bucket every client together and throttle
+// everyone at once. Trust exactly one hop — `true` would let a caller
+// spoof their own address by sending the header themselves.
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
