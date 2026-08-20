@@ -41,7 +41,8 @@ exports.signup = async (req, res) => {
       res.status(400).json({ success: false, message: 'Invalid user data' });
     }
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('signup failed:', error);
+    res.status(500).json({ success: false, message: 'Could not create the account' });
   }
 };
 
@@ -64,7 +65,8 @@ exports.login = async (req, res) => {
       res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('auth request failed:', error);
+    res.status(500).json({ success: false, message: 'Something went wrong' });
   }
 };
 
@@ -77,6 +79,7 @@ exports.getMe = async (req, res) => {
       res.status(404).json({ success: false, message: 'User not found' });
     }
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('auth request failed:', error);
+    res.status(500).json({ success: false, message: 'Something went wrong' });
   }
 };
