@@ -1,30 +1,37 @@
 /**
- * Browser-side Virtual Try-On using MediaPipe Pose.
- * Runs entirely client-side - no backend required.
+ * Browser-side Virtual Try-On.
  *
- * Pipeline:
- *  1. Detect 33 body landmarks with MediaPipe Pose (via CDN).
- *  2. Use shoulder + hip landmarks to compute torso geometry.
- *  3. Resize & affine-warp the garment PNG onto the torso region.
- *  4. Render onto a canvas (still image OR live webcam stream).
+ * Two engines, in order of preference:
+ *
+ * 1. **Hugging Face IDM-VTON** (the killer feature) — calls the public
+ *    `yisol/IDM-VTON` Gradio Space which is a real diffusion-based try-on
+ *    model. Produces photorealistic results. Slower (~30-60s) but free.
+ *
+ * 2. **MediaPipe Pose overlay** (instant fallback) — detects 33 body
+ *    landmarks, removes the garment's background and draws the cutout
+ *    over the torso. Fast and works offline; quality is "good demo" not
+ *    photoreal.
  *
  * Exposed API:
- *   BrowserTryOn.init()                         -> preload MediaPipe once
- *   BrowserTryOn.composite(userImg, garmentImg) -> Promise<dataURL>
+ *   BrowserTryOn.init()
+ *   BrowserTryOn.composite(userImg, garmentImg, opts)
+ *     -> { dataUrl, engine: 'ai'|'overlay' }
  *   BrowserTryOn.startWebcam(videoEl, canvasEl, garmentImg)
  *   BrowserTryOn.stopWebcam()
  */
 (function (global) {
     const MP_VERSION = '0.5.1675469404';
-    const SCRIPTS = [
-        `https://cdn.jsdelivr.net/npm/@mediapipe/pose@${MP_VERSION}/pose.js`
-    ];
+    const MP_SCRIPT = `https://cdn.jsdelivr.net/npm/@mediapipe/pose@${MP_VERSION}/pose.js`;
+    const HF_SPACE = 'yisol/IDM-VTON';
+    const GRADIO_CLIENT_SRC = 'https://cdn.jsdelivr.net/npm/@gradio/client@1.7.1/dist/index.min.js';
 
     let _poseInstance = null;
-    let _ready = false;
-    let _loadingPromise = null;
+    let _mpReady = false;
+    let _mpLoadingPromise = null;
     let _webcamStream = null;
     let _rafHandle = null;
+    let _gradioClient = null;
+    let _gradioPromise = null;
 
     function _loadScript(src) {
         return new Promise((resolve, reject) => {
@@ -38,13 +45,11 @@
         });
     }
 
-    async function init() {
-        if (_ready) return;
-        if (_loadingPromise) return _loadingPromise;
-
-        _loadingPromise = (async () => {
-            for (const src of SCRIPTS) await _loadScript(src);
-            // global `Pose` constructor is now available.
+    async function _initMediaPipe() {
+        if (_mpReady) return;
+        if (_mpLoadingPromise) return _mpLoadingPromise;
+        _mpLoadingPromise = (async () => {
+            await _loadScript(MP_SCRIPT);
             _poseInstance = new global.Pose({
                 locateFile: (file) =>
                     `https://cdn.jsdelivr.net/npm/@mediapipe/pose@${MP_VERSION}/${file}`
@@ -56,11 +61,111 @@
                 minDetectionConfidence: 0.5,
                 minTrackingConfidence: 0.5
             });
-            _ready = true;
+            _mpReady = true;
         })();
-        return _loadingPromise;
+        return _mpLoadingPromise;
     }
 
+    async function init() { return _initMediaPipe(); }
+
+    // ------------------------------------------------------------------
+    // Hugging Face IDM-VTON via Gradio client
+    // ------------------------------------------------------------------
+    async function _initGradio() {
+        if (_gradioClient) return _gradioClient;
+        if (_gradioPromise) return _gradioPromise;
+        _gradioPromise = (async () => {
+            // ESM dynamic import of the Gradio JS client.
+            const mod = await import(/* @vite-ignore */
+                'https://cdn.jsdelivr.net/npm/@gradio/client@1.7.1/dist/index.min.js'
+            );
+            const Client = mod.Client || mod.client || mod.default;
+            if (!Client) throw new Error('Gradio client missing Client export');
+            const connect = Client.connect || Client;
+            _gradioClient = await connect(HF_SPACE);
+            return _gradioClient;
+        })();
+        return _gradioPromise;
+    }
+
+    async function _toBlob(src) {
+        if (src instanceof Blob) return src;
+        if (typeof src === 'string') {
+            if (src.startsWith('data:')) {
+                const [meta, data] = src.split(',');
+                const mime = (meta.match(/data:(.*?);/) || [null, 'image/jpeg'])[1];
+                const bin = atob(data);
+                const arr = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+                return new Blob([arr], { type: mime });
+            }
+            // Network image (e.g. Pollinations URL) — fetch as Blob.
+            const r = await fetch(src, { mode: 'cors' });
+            return await r.blob();
+        }
+        if (src instanceof HTMLImageElement || src instanceof HTMLCanvasElement) {
+            const c = src instanceof HTMLCanvasElement ? src : (() => {
+                const cv = document.createElement('canvas');
+                cv.width = src.naturalWidth; cv.height = src.naturalHeight;
+                cv.getContext('2d').drawImage(src, 0, 0);
+                return cv;
+            })();
+            return await new Promise((resolve) => c.toBlob(resolve, 'image/jpeg', 0.92));
+        }
+        throw new Error('Unsupported image source');
+    }
+
+    /**
+     * Run IDM-VTON on Hugging Face. Returns data URL on success or null on
+     * failure (caller falls back to the overlay engine).
+     */
+    async function _tryHuggingFace(userImg, garmentImg, onProgress) {
+        try {
+            onProgress && onProgress('Connecting to AI model...');
+            const client = await _initGradio();
+            onProgress && onProgress('Uploading your photo...');
+            const userBlob = await _toBlob(userImg.src || userImg);
+            const garmBlob = await _toBlob(garmentImg.src || garmentImg);
+            onProgress && onProgress('Running diffusion model (this can take a minute)...');
+
+            // IDM-VTON's primary endpoint signature:
+            // (dict: {background, layers, composite}, garm_img, garment_des,
+            //  is_checked, is_checked_crop, denoise_steps, seed)
+            const result = await client.predict('/tryon', [
+                { background: userBlob, layers: [], composite: null },
+                garmBlob,
+                'A fashion garment',
+                true,   // auto-mask
+                false,  // crop
+                30,     // denoise steps
+                42      // seed
+            ]);
+
+            const data = result && result.data;
+            if (!data || !data.length) throw new Error('Empty result');
+            const first = data[0];
+            const url = (first && (first.url || first.path)) || first;
+            if (typeof url !== 'string') throw new Error('No image URL in result');
+            return await _urlToDataUrl(url);
+        } catch (e) {
+            console.warn('[BrowserTryOn] Hugging Face engine failed:', e.message || e);
+            return null;
+        }
+    }
+
+    async function _urlToDataUrl(url) {
+        const r = await fetch(url, { mode: 'cors' });
+        const blob = await r.blob();
+        return await new Promise((resolve) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(fr.result);
+            fr.readAsDataURL(blob);
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // Browser overlay engine (instant fallback)
+    // ------------------------------------------------------------------
     function _loadImage(src) {
         return new Promise((resolve, reject) => {
             const img = new Image();
@@ -72,18 +177,13 @@
     }
 
     /**
-     * Trim background from a garment image and feather edges.
-     *
-     * Strategy:
-     *  1. Sample the four corners to estimate the dominant background colour.
-     *  2. Mark any pixel within a tolerance of that colour as background.
-     *  3. Flood-fill from the borders so we only strip *contiguous* background
-     *     (interior pixels with the same colour - e.g. a white logo - survive).
-     *  4. Feather the alpha mask so the overlay blends.
+     * Remove the garment's background by sampling border pixels, building
+     * a tolerance mask and flood-filling from the borders so internal
+     * detail (logos, prints) is preserved.
      */
     function _prepGarment(img) {
-        const W = img.naturalWidth;
-        const H = img.naturalHeight;
+        const W = img.naturalWidth || img.width;
+        const H = img.naturalHeight || img.height;
         const c = document.createElement('canvas');
         c.width = W; c.height = H;
         const ctx = c.getContext('2d');
@@ -91,39 +191,34 @@
         const data = ctx.getImageData(0, 0, W, H);
         const px = data.data;
 
-        const sampleAt = (x, y) => {
+        const sample = (x, y) => {
             const i = (y * W + x) * 4;
             return [px[i], px[i + 1], px[i + 2]];
         };
         const samples = [
-            sampleAt(0, 0), sampleAt(W - 1, 0),
-            sampleAt(0, H - 1), sampleAt(W - 1, H - 1),
-            sampleAt(W >> 1, 0), sampleAt(W >> 1, H - 1)
+            sample(0, 0), sample(W - 1, 0), sample(0, H - 1), sample(W - 1, H - 1),
+            sample(W >> 1, 0), sample(W >> 1, H - 1),
+            sample(0, H >> 1), sample(W - 1, H >> 1)
         ];
-        // Background candidate = mean of border samples.
         let bgR = 0, bgG = 0, bgB = 0;
-        for (const s of samples) { bgR += s[0]; bgG += s[1]; bgB += s[2]; }
+        samples.forEach((s) => { bgR += s[0]; bgG += s[1]; bgB += s[2]; });
         bgR /= samples.length; bgG /= samples.length; bgB /= samples.length;
-
-        // If the corners disagree wildly, fall back to "strip near-white" mode.
         const variance = samples.reduce((acc, s) =>
-            acc + Math.abs(s[0] - bgR) + Math.abs(s[1] - bgG) + Math.abs(s[2] - bgB), 0);
-        const noisyBackground = variance / samples.length > 60;
-        const tolerance = noisyBackground ? 35 : 55;
+            acc + Math.abs(s[0] - bgR) + Math.abs(s[1] - bgG) + Math.abs(s[2] - bgB), 0) / samples.length;
 
-        // Build initial background mask.
-        const mask = new Uint8Array(W * H); // 0 = unknown, 1 = bg, 2 = fg
+        // Higher tolerance if the corners agree (clean studio shot).
+        const tolerance = variance < 30 ? 70 : 45;
+
+        const mask = new Uint8Array(W * H);
         for (let y = 0; y < H; y++) {
             for (let x = 0; x < W; x++) {
                 const i = (y * W + x) * 4;
-                const dr = Math.abs(px[i] - bgR);
-                const dg = Math.abs(px[i + 1] - bgG);
-                const db = Math.abs(px[i + 2] - bgB);
-                if (dr + dg + db < tolerance * 3) mask[y * W + x] = 1;
+                const d = Math.abs(px[i] - bgR) + Math.abs(px[i + 1] - bgG) + Math.abs(px[i + 2] - bgB);
+                if (d < tolerance * 3) mask[y * W + x] = 1;
             }
         }
 
-        // Flood-fill from borders so only contiguous border-touching bg is removed.
+        // Flood-fill only contiguous border-touching bg.
         const visited = new Uint8Array(W * H);
         const stack = [];
         const push = (x, y) => {
@@ -139,140 +234,94 @@
             const idx = stack.pop();
             const x = idx % W;
             const y = (idx / W) | 0;
-            push(x + 1, y); push(x - 1, y);
-            push(x, y + 1); push(x, y - 1);
+            push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1);
         }
 
-        // Apply alpha: contiguous bg => 0; interior bg-like pixels keep alpha.
         for (let i = 0, p = 0; i < px.length; i += 4, p++) {
-            if (visited[p]) px[i + 3] = 0;
+            if (visited[p]) {
+                px[i + 3] = 0;
+            }
         }
-
         ctx.putImageData(data, 0, 0);
 
-        // Feather edges with a small blur for smoother compositing.
+        // Tight crop around the non-transparent region for a snug fit.
+        let minX = W, minY = H, maxX = 0, maxY = 0;
+        for (let y = 0; y < H; y++) {
+            for (let x = 0; x < W; x++) {
+                if (px[(y * W + x) * 4 + 3] > 0) {
+                    if (x < minX) minX = x; if (x > maxX) maxX = x;
+                    if (y < minY) minY = y; if (y > maxY) maxY = y;
+                }
+            }
+        }
+        if (minX >= maxX || minY >= maxY) return c;
+        const cropW = maxX - minX + 1;
+        const cropH = maxY - minY + 1;
         const out = document.createElement('canvas');
-        out.width = W; out.height = H;
-        const octx = out.getContext('2d');
-        octx.filter = 'blur(1.2px)';
-        octx.drawImage(c, 0, 0);
-        octx.filter = 'none';
-        octx.globalCompositeOperation = 'source-atop';
-        octx.drawImage(c, 0, 0);
+        out.width = cropW; out.height = cropH;
+        out.getContext('2d').drawImage(c, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
         return out;
     }
 
     /**
-     * Given pose landmarks (normalized 0-1) and the canvas size,
-     * compute the destination quad on the canvas that the garment should warp into.
+     * Place the garment cutout over the torso. Simple placement (no warp)
+     * — this looks much more like a sticker overlay but is more robust
+     * than affine distortion against an inaccurate pose.
      */
-    function _computeTorsoQuad(lm, W, H) {
-        // 11 = left shoulder, 12 = right shoulder, 23 = left hip, 24 = right hip
-        const ls = { x: lm[11].x * W, y: lm[11].y * H };
-        const rs = { x: lm[12].x * W, y: lm[12].y * H };
-        const lh = { x: lm[23].x * W, y: lm[23].y * H };
-        const rh = { x: lm[24].x * W, y: lm[24].y * H };
+    function _overlayOnTorso(ctx, garmentCanvas, lm, W, H) {
+        const ls = { x: lm[11].x * W, y: lm[11].y * H, v: lm[11].visibility };
+        const rs = { x: lm[12].x * W, y: lm[12].y * H, v: lm[12].visibility };
+        const lh = { x: lm[23].x * W, y: lm[23].y * H, v: lm[23].visibility };
+        const rh = { x: lm[24].x * W, y: lm[24].y * H, v: lm[24].visibility };
 
         const shoulderW = Math.hypot(ls.x - rs.x, ls.y - rs.y);
-        const torsoH = (Math.hypot(ls.x - lh.x, ls.y - lh.y) +
-            Math.hypot(rs.x - rh.x, rs.y - rh.y)) / 2;
+        const torsoH = ((lh.y + rh.y) / 2) - ((ls.y + rs.y) / 2);
+        if (shoulderW < 20 || torsoH < 30) return false;
 
-        // Expand shoulders ~1.4x outward so sleeves drape over arms.
-        const expand = 1.4;
-        const sCenter = { x: (ls.x + rs.x) / 2, y: (ls.y + rs.y) / 2 };
-        const sDirX = (ls.x - rs.x) / shoulderW;
-        const sDirY = (ls.y - rs.y) / shoulderW;
-        const halfW = (shoulderW * expand) / 2;
-        const lsX = sCenter.x + sDirX * halfW;
-        const lsY = sCenter.y + sDirY * halfW;
-        const rsX = sCenter.x - sDirX * halfW;
-        const rsY = sCenter.y - sDirY * halfW;
+        // Target garment width = shoulder * 2.4 (sleeves drape past arms).
+        // Garments tend to look too small if scaled tightly; over-shoot.
+        const targetW = shoulderW * 2.4;
+        const aspect = garmentCanvas.height / garmentCanvas.width;
+        const targetH = targetW * aspect;
 
-        // Anchor top above the shoulder line (collar).
-        const upY = -torsoH * 0.18;
-        const perpX = -sDirY;
-        const perpY = sDirX;
-        const tl = { x: lsX + perpX * upY, y: lsY + perpY * upY };
-        const tr = { x: rsX + perpX * upY, y: rsY + perpY * upY };
+        const shoulderCx = (ls.x + rs.x) / 2;
+        const shoulderCy = (ls.y + rs.y) / 2;
 
-        // Extend bottom past hips so the garment hem reaches mid-thigh.
-        const downExtra = torsoH * 0.55;
-        const hCenter = { x: (lh.x + rh.x) / 2, y: (lh.y + rh.y) / 2 };
-        const torsoDirX = (hCenter.x - sCenter.x) / Math.max(torsoH, 1);
-        const torsoDirY = (hCenter.y - sCenter.y) / Math.max(torsoH, 1);
-        const blX = lh.x + torsoDirX * downExtra;
-        const blY = lh.y + torsoDirY * downExtra;
-        const brX = rh.x + torsoDirX * downExtra;
-        const brY = rh.y + torsoDirY * downExtra;
+        // Top of garment sits a touch above shoulders (collar area).
+        const x = shoulderCx - targetW / 2;
+        const y = shoulderCy - targetH * 0.12;
 
-        return {
-            tl, tr,
-            bl: { x: blX, y: blY },
-            br: { x: brX, y: brY }
-        };
-    }
+        // Compute rotation from shoulder line for natural tilt.
+        const angle = Math.atan2(ls.y - rs.y, ls.x - rs.x);
 
-    /**
-     * Render an axis-aligned source rectangle onto a destination quadrilateral
-     * via 2-triangle affine slicing. Works for small rotations / scales.
-     */
-    function _drawWarpedQuad(ctx, src, dst) {
-        const sw = src.width;
-        const sh = src.height;
-
-        // Top-left -> top-right -> bottom-left triangle
-        _drawTri(ctx, src,
-            [0, 0], [sw, 0], [0, sh],
-            [dst.tl.x, dst.tl.y], [dst.tr.x, dst.tr.y], [dst.bl.x, dst.bl.y]);
-        // Top-right -> bottom-right -> bottom-left triangle
-        _drawTri(ctx, src,
-            [sw, 0], [sw, sh], [0, sh],
-            [dst.tr.x, dst.tr.y], [dst.br.x, dst.br.y], [dst.bl.x, dst.bl.y]);
-    }
-
-    function _drawTri(ctx, img, s0, s1, s2, d0, d1, d2) {
-        const [x0, y0] = d0, [x1, y1] = d1, [x2, y2] = d2;
-        const [u0, v0] = s0, [u1, v1] = s1, [u2, v2] = s2;
         ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(x0, y0);
-        ctx.lineTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.closePath();
-        ctx.clip();
-        // Affine matrix solving: dst = M * src
-        const denom = u0 * (v1 - v2) - v0 * (u1 - u2) + u1 * v2 - u2 * v1;
-        if (Math.abs(denom) < 1e-6) { ctx.restore(); return; }
-        const a = (x0 * (v1 - v2) - v0 * (x1 - x2) + v1 * x2 - v2 * x1) / denom;
-        const b = (u0 * (x1 - x2) - x0 * (u1 - u2) + u1 * x2 - u2 * x1) / denom;
-        const c = (u0 * (v1 * x2 - v2 * x1) - v0 * (u1 * x2 - u2 * x1)
-                  + x0 * (u1 * v2 - u2 * v1)) / denom;
-        const d = (y0 * (v1 - v2) - v0 * (y1 - y2) + v1 * y2 - v2 * y1) / denom;
-        const e = (u0 * (y1 - y2) - y0 * (u1 - u2) + u1 * y2 - u2 * y1) / denom;
-        const f = (u0 * (v1 * y2 - v2 * y1) - v0 * (u1 * y2 - u2 * y1)
-                  + y0 * (u1 * v2 - u2 * v1)) / denom;
-        ctx.setTransform(a, d, b, e, c, f);
-        ctx.drawImage(img, 0, 0);
+        // Slight drop shadow for depth.
+        ctx.shadowColor = 'rgba(0,0,0,0.25)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetY = 4;
+
+        // Rotate around shoulder center.
+        ctx.translate(shoulderCx, shoulderCy);
+        ctx.rotate(angle);
+        ctx.drawImage(
+            garmentCanvas,
+            -targetW / 2, -targetH * 0.12,
+            targetW, targetH
+        );
         ctx.restore();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        return true;
     }
 
-    /**
-     * Composite a garment onto a still photo of the user.
-     * @param {string|HTMLImageElement} userInput  data URL or <img>
-     * @param {string|HTMLImageElement} garmentInput  data URL or <img>
-     * @returns {Promise<string>} data URL of the composited image
-     */
-    async function composite(userInput, garmentInput) {
-        await init();
+    async function _runOverlay(userInput, garmentInput) {
+        await _initMediaPipe();
         const userImg = typeof userInput === 'string' ? await _loadImage(userInput) : userInput;
         const garmentImg = typeof garmentInput === 'string' ? await _loadImage(garmentInput) : garmentInput;
 
-        // Cap working size to keep MediaPipe snappy.
+        // Cap user image at 720px wide for MediaPipe speed.
         const MAX_W = 720;
-        const ratio = Math.min(1, MAX_W / userImg.naturalWidth);
-        const W = Math.round(userImg.naturalWidth * ratio);
-        const H = Math.round(userImg.naturalHeight * ratio);
+        const ratio = Math.min(1, MAX_W / (userImg.naturalWidth || userImg.width));
+        const W = Math.round((userImg.naturalWidth || userImg.width) * ratio);
+        const H = Math.round((userImg.naturalHeight || userImg.height) * ratio);
 
         const canvas = document.createElement('canvas');
         canvas.width = W; canvas.height = H;
@@ -281,33 +330,47 @@
 
         const garmentCanvas = _prepGarment(garmentImg);
 
-        // Run pose detection on the resized user image.
         const result = await new Promise((resolve) => {
             _poseInstance.onResults((r) => resolve(r));
             _poseInstance.send({ image: canvas });
         });
 
         if (result && result.poseLandmarks) {
-            const quad = _computeTorsoQuad(result.poseLandmarks, W, H);
-            _drawWarpedQuad(ctx, garmentCanvas, quad);
+            _overlayOnTorso(ctx, garmentCanvas, result.poseLandmarks, W, H);
         } else {
-            // Fallback: simple centered overlay so the demo still produces output.
-            const tw = W * 0.6;
+            // No pose: just center the garment over the upper-middle area.
+            const tw = W * 0.7;
             const th = tw * (garmentCanvas.height / garmentCanvas.width);
-            ctx.globalAlpha = 0.92;
-            ctx.drawImage(garmentCanvas, (W - tw) / 2, H * 0.22, tw, th);
-            ctx.globalAlpha = 1;
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.25)';
+            ctx.shadowBlur = 10;
+            ctx.drawImage(garmentCanvas, (W - tw) / 2, H * 0.18, tw, th);
+            ctx.restore();
         }
-
         return canvas.toDataURL('image/jpeg', 0.92);
     }
 
-    /**
-     * Start live webcam try-on. Continuously detects pose on each frame and
-     * overlays the garment. Use stopWebcam() to release the camera.
-     */
+    // ------------------------------------------------------------------
+    // Public API
+    // ------------------------------------------------------------------
+    async function composite(userInput, garmentInput, opts = {}) {
+        const useAI = opts.useAI !== false;
+        const onProgress = opts.onProgress;
+
+        if (useAI) {
+            const userImgEl = typeof userInput === 'string' ? await _loadImage(userInput) : userInput;
+            const garmentImgEl = typeof garmentInput === 'string' ? await _loadImage(garmentInput) : garmentInput;
+            const aiResult = await _tryHuggingFace(userImgEl, garmentImgEl, onProgress);
+            if (aiResult) return { dataUrl: aiResult, engine: 'ai' };
+        }
+
+        onProgress && onProgress('Falling back to local pose overlay...');
+        const dataUrl = await _runOverlay(userInput, garmentInput);
+        return { dataUrl, engine: 'overlay' };
+    }
+
     async function startWebcam(videoEl, canvasEl, garmentInput) {
-        await init();
+        await _initMediaPipe();
         const garmentImg = typeof garmentInput === 'string' ? await _loadImage(garmentInput) : garmentInput;
         const garmentCanvas = _prepGarment(garmentImg);
 
@@ -321,8 +384,7 @@
 
         const W = videoEl.videoWidth;
         const H = videoEl.videoHeight;
-        canvasEl.width = W;
-        canvasEl.height = H;
+        canvasEl.width = W; canvasEl.height = H;
         const ctx = canvasEl.getContext('2d');
 
         let latestLandmarks = null;
@@ -333,19 +395,15 @@
             if (!_webcamStream) return;
             if (!processing) {
                 processing = true;
-                try {
-                    await _poseInstance.send({ image: videoEl });
-                } catch (e) {/* mediapipe occasionally throws on first frames */}
+                try { await _poseInstance.send({ image: videoEl }); }
+                catch (e) { /* mediapipe transient errors */ }
                 processing = false;
             }
             ctx.save();
-            // Mirror so it feels like a mirror.
-            ctx.translate(W, 0);
-            ctx.scale(-1, 1);
+            ctx.translate(W, 0); ctx.scale(-1, 1);
             ctx.drawImage(videoEl, 0, 0, W, H);
             if (latestLandmarks) {
-                const quad = _computeTorsoQuad(latestLandmarks, W, H);
-                _drawWarpedQuad(ctx, garmentCanvas, quad);
+                _overlayOnTorso(ctx, garmentCanvas, latestLandmarks, W, H);
             }
             ctx.restore();
             _rafHandle = requestAnimationFrame(loop);

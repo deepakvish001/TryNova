@@ -280,19 +280,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         showLoading();
+        const msgEl = document.getElementById('loadingMessage');
 
-        // Try browser-side AI first - it's instant, free, and accurate enough for a demo.
+        // Try the AI engine (Hugging Face IDM-VTON) first; if it fails or
+        // takes too long we fall back to the local MediaPipe overlay.
         try {
-            const resultDataUrl = await BrowserTryOn.composite(userImageBase64, garmentUrl);
-            showResult(resultDataUrl);
-            window.showToast('Your look is ready', 'success');
+            const result = await BrowserTryOn.composite(userImageBase64, garmentUrl, {
+                useAI: true,
+                onProgress: (msg) => {
+                    // Stop the cycling default messages once we have real progress info.
+                    clearInterval(loadingInterval);
+                    if (msgEl) msgEl.textContent = msg;
+                }
+            });
+            showResult(result.dataUrl);
+            window.showToast(
+                result.engine === 'ai'
+                    ? 'AI try-on ready!'
+                    : 'Pose overlay ready',
+                'success'
+            );
             trackTryOnView(selectedProduct._id);
             return;
         } catch (browserErr) {
             console.warn('Browser try-on failed, falling back to server', browserErr);
         }
 
-        // Server fallback
+        // Server fallback (only useful in dev with backend running)
         try {
             let base64Data = userImageBase64;
             if (base64Data.includes(',')) base64Data = base64Data.split(',')[1];
