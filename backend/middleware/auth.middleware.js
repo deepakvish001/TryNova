@@ -1,20 +1,22 @@
 const jwt = require('jsonwebtoken');
+const { JWT_SECRET } = require('../config/jwt');
 
-const protect = async (req, res, next) => {
-  let token;
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    try {
-      token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'trynova_super_secret_jwt_key_2026');
-      req.user = decoded; // { id: userId }
-      next();
-    } catch (error) {
-      res.status(401).json({ success: false, message: 'Not authorized, token failed' });
-    }
+const protect = (req, res, next) => {
+  const header = req.headers.authorization || '';
+
+  // Require the scheme *and* a non-empty credential. `startsWith('Bearer')`
+  // alone also matched things like "BearerX", and an "Authorization: Bearer"
+  // header with no token left `token` undefined.
+  const [scheme, token] = header.split(' ');
+  if (scheme !== 'Bearer' || !token) {
+    return res.status(401).json({ success: false, message: 'Not authorized, no token' });
   }
 
-  if (!token) {
-    res.status(401).json({ success: false, message: 'Not authorized, no token' });
+  try {
+    req.user = jwt.verify(token, JWT_SECRET); // { id: userId }
+    return next();
+  } catch (error) {
+    return res.status(401).json({ success: false, message: 'Not authorized, token failed' });
   }
 };
 
