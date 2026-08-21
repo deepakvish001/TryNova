@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const { buildHealthPayload } = require('./utils/health');
 
 dotenv.config();
 
@@ -38,6 +39,15 @@ app.use('/api/recommendations', require('./routes/recommendations.routes'));
 // Basic health check route
 app.get('/', (req, res) => {
   res.send('TryNova API is running');
+});
+
+// Health check for uptime monitors / Vercel cron pings — reports whether
+// MongoDB is actually reachable, not just that the process is up. A 200
+// from '/' above says nothing about the DB, so callers that want to know
+// whether requests will actually succeed need this instead.
+app.get('/api/health', (req, res) => {
+  const { statusCode, payload } = buildHealthPayload(mongoose.connection.readyState);
+  res.status(statusCode).json(payload);
 });
 
 // Global Error Handler
