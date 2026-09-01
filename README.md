@@ -1,6 +1,18 @@
-# TryNova - AI-Powered Fashion E-commerce
+<div align="center">
 
-TryNova is a production-ready AI-powered fashion web application. It pairs a modern frontend with a Node.js + Express backend and a Python FastAPI AI microservice for virtual try-ons.
+<h1>✨ StyleLens</h1>
+
+<p><strong>An intelligent fashion storefront with virtual try-on, recommendations, and wardrobe discovery.</strong></p>
+
+![Node.js](https://img.shields.io/badge/Node.js-20232A?style=for-the-badge) ![FastAPI](https://img.shields.io/badge/FastAPI-20232A?style=for-the-badge) ![MongoDB](https://img.shields.io/badge/MongoDB-20232A?style=for-the-badge) ![MediaPipe](https://img.shields.io/badge/MediaPipe-20232A?style=for-the-badge) ![OpenCV](https://img.shields.io/badge/OpenCV-20232A?style=for-the-badge)
+
+<p><a href="#features">Features</a> • <a href="#prerequisites">Prerequisites</a> • <a href="#installation--setup">Setup</a> • <a href="#api-documentation">API</a></p>
+
+</div>
+
+---
+
+StyleLens is a production-ready AI-powered fashion web application. It pairs a modern frontend with a Node.js + Express backend and a Python FastAPI AI microservice for virtual try-ons.
 
 ## Features
 
@@ -43,8 +55,8 @@ pip install -r requirements.txt
 Create a `.env` file in the `/backend` directory based on the `.ENV FILE TEMPLATE` (already created for you):
 ```env
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/trynova
-JWT_SECRET=trynova_super_secret_jwt_key_2026
+MONGODB_URI=mongodb://localhost:27017/stylelens
+JWT_SECRET=replace-with-a-long-random-secret
 JWT_EXPIRES_IN=7d
 AI_SERVICE_URL=http://localhost:8000
 ```

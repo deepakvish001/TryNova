@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [claude/amazing-brahmagupta-vqYY0]
+    branches: [main]
   pull_request:
 
 concurrency:
